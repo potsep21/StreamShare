@@ -1,3 +1,6 @@
+<?php
+require_once 'includes/functions.php';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -18,11 +21,18 @@
 
     <nav>
         <ul>
-            <li><a href="index.html">Home</a></li>
-            <li><a href="about.html">About</a></li>
-            <li><a href="help.html">Help</a></li>
-            <li><a href="php/register.php">Register</a></li>
-            <li><a href="php/login.php">Login</a></li>
+            <li><a href="index.php">Home</a></li>
+            <?php if (isLoggedIn()): ?>
+                <li><a href="php/dashboard.php">Dashboard</a></li>
+                <li><a href="php/profile.php">Profile</a></li>
+                <li><a href="php/search.php">Search</a></li>
+                <li><a href="php/logout.php">Logout</a></li>
+            <?php else: ?>
+                <li><a href="about.php">About</a></li>
+                <li><a href="help.php">Help</a></li>
+                <li><a href="php/register.php">Register</a></li>
+                <li><a href="php/login.php">Login</a></li>
+            <?php endif; ?>
         </ul>
     </nav>
 

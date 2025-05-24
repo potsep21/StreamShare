@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-// Function to sanitize user input
+// Function to sanitize user input to prevent SQL injection
 function sanitize($data) {
     $data = trim($data);
     $data = stripslashes($data);

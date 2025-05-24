@@ -5,5 +5,5 @@ require_once '../includes/functions.php';
 session_destroy();
 
 // Redirect to home page
-redirect('../index.html');
+redirect('../index.php');
 ?> 
