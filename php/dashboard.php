@@ -336,7 +336,7 @@ $public_lists_count = getPublicListsCount($_SESSION['user_id']);
     </main>
 
     <footer>
-        <p>&copy; 2024 StreamShare. All rights reserved.</p>
+        <p>&copy; 2025 StreamShare. All rights reserved.</p>
     </footer>
 
     <script src="../js/main.js"></script>
