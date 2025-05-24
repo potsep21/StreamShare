@@ -1,0 +1,144 @@
+:root {
+    /* Light theme variables */
+    --light-bg: #ffffff;
+    --light-text: #333333;
+    --light-accent: #007bff;
+    --light-secondary: #f8f9fa;
+    --light-border: #dee2e6;
+
+    /* Dark theme variables */
+    --dark-bg: #222222;
+    --dark-text: #ffffff;
+    --dark-accent: #0056b3;
+    --dark-secondary: #333333;
+    --dark-border: #444444;
+}
+
+/* Light theme (default) */
+body {
+    background-color: var(--light-bg);
+    color: var(--light-text);
+    font-family: 'Arial', sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    transition: all 0.3s ease;
+}
+
+/* Dark theme */
+body.dark-theme {
+    background-color: var(--dark-bg);
+    color: var(--dark-text);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Header styles */
+header {
+    background-color: var(--light-accent);
+    color: white;
+    padding: 1rem;
+    text-align: center;
+}
+
+body.dark-theme header {
+    background-color: var(--dark-accent);
+}
+
+/* Navigation */
+nav {
+    background-color: var(--light-secondary);
+    padding: 1rem;
+    margin-bottom: 2rem;
+}
+
+body.dark-theme nav {
+    background-color: var(--dark-secondary);
+}
+
+nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+}
+
+nav a {
+    color: var(--light-text);
+    text-decoration: none;
+}
+
+body.dark-theme nav a {
+    color: var(--dark-text);
+}
+
+/* Theme toggle button */
+.theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 10px;
+    border-radius: 50%;
+    border: none;
+    background-color: var(--light-secondary);
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+body.dark-theme .theme-toggle {
+    background-color: var(--dark-secondary);
+}
+
+/* Accordion styles */
+.accordion {
+    margin-bottom: 1rem;
+}
+
+.accordion-header {
+    background-color: var(--light-secondary);
+    padding: 1rem;
+    cursor: pointer;
+    border: 1px solid var(--light-border);
+    border-radius: 4px;
+    margin-bottom: 2px;
+}
+
+body.dark-theme .accordion-header {
+    background-color: var(--dark-secondary);
+    border-color: var(--dark-border);
+}
+
+.accordion-content {
+    display: none;
+    padding: 1rem;
+    border: 1px solid var(--light-border);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+}
+
+body.dark-theme .accordion-content {
+    border-color: var(--dark-border);
+}
+
+.accordion-header.active {
+    background-color: var(--light-accent);
+    color: white;
+}
+
+body.dark-theme .accordion-header.active {
+    background-color: var(--dark-accent);
+}
+
+.accordion-content.active {
+    display: block;
+} 
