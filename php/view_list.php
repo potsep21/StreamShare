@@ -1,11 +1,16 @@
 <?php
 require_once '../config/database.php';
+require_once '../config/youtube.php';
 require_once '../includes/functions.php';
 
 // Check if user is logged in
 if (!isLoggedIn()) {
     redirect('login.php');
 }
+
+// Get theme preference from cookie
+$isDarkTheme = isset($_COOKIE['lastTheme']) && $_COOKIE['lastTheme'] === 'dark';
+$themeClass = $isDarkTheme ? 'dark-theme' : '';
 
 // Get list ID from URL
 if (!isset($_GET['id'])) {
@@ -39,22 +44,30 @@ try {
 
         if ($_POST['action'] === 'add_video') {
             $youtube_url = sanitize($_POST['youtube_url']);
-            $video_title = sanitize($_POST['video_title']);
             
             // Extract YouTube ID from URL
             preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/', $youtube_url, $matches);
             if (!empty($matches[1])) {
                 $youtube_id = $matches[1];
                 
-                // Get the next position
-                $position = count($videos) + 1;
+                // Get video details from YouTube API
+                $videoDetails = getYouTubeVideoDetails($youtube_id);
+                if (isset($videoDetails['items'][0])) {
+                    $videoData = $videoDetails['items'][0]['snippet'];
+                    $video_title = $videoData['title'];
+                    
+                    // Get the next position
+                    $position = count($videos) + 1;
 
-                // Insert video
-                $stmt = $conn->prepare("INSERT INTO list_items (list_id, title, youtube_id, position) VALUES (?, ?, ?, ?)");
-                $stmt->execute([$list_id, $video_title, $youtube_id, $position]);
-                
-                // Refresh the page to show new video
-                redirect("view_list.php?id=" . $list_id);
+                    // Insert video
+                    $stmt = $conn->prepare("INSERT INTO list_items (list_id, title, youtube_id, position) VALUES (?, ?, ?, ?)");
+                    $stmt->execute([$list_id, $video_title, $youtube_id, $position]);
+                    
+                    // Refresh the page to show new video
+                    redirect("view_list.php?id=" . $list_id);
+                } else {
+                    $error_message = "Could not fetch video details from YouTube";
+                }
             } else {
                 $error_message = "Invalid YouTube URL";
             }
@@ -69,6 +82,9 @@ try {
                 // Refresh the page
                 redirect("view_list.php?id=" . $list_id);
             }
+        } elseif ($_POST['action'] === 'search_video') {
+            $search_query = sanitize($_POST['search_query']);
+            $searchResults = searchYouTubeVideos($search_query);
         }
     }
 
@@ -87,12 +103,14 @@ try {
         .video-container {
             margin: 2rem 0;
             padding: 1rem;
-            background-color: var(--light-secondary);
+            background-color: #f0f2f5;
             border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
         body.dark-theme .video-container {
             background-color: var(--dark-secondary);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
         }
 
         .video-grid {
@@ -103,15 +121,27 @@ try {
         }
 
         .video-card {
-            background-color: var(--light-bg);
-            border: 1px solid var(--light-border);
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
             border-radius: 8px;
             padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .video-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
         body.dark-theme .video-card {
             background-color: var(--dark-bg);
             border-color: var(--dark-border);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        body.dark-theme .video-card:hover {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
         }
 
         .video-thumbnail {
@@ -120,11 +150,22 @@ try {
             object-fit: cover;
             border-radius: 4px;
             margin-bottom: 1rem;
+            border: 1px solid #e5e7eb;
+        }
+
+        body.dark-theme .video-thumbnail {
+            border-color: var(--dark-border);
         }
 
         .video-title {
             margin: 0.5rem 0;
             font-size: 1.1rem;
+            color: #111827;
+            font-weight: 600;
+        }
+
+        body.dark-theme .video-title {
+            color: var(--dark-text);
         }
 
         .video-actions {
@@ -136,6 +177,15 @@ try {
         .preview-container {
             margin: 1rem 0;
             display: none;
+            background-color: #ffffff;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+        }
+
+        body.dark-theme .preview-container {
+            background-color: var(--dark-bg);
+            border-color: var(--dark-border);
         }
 
         #videoPreview {
@@ -144,10 +194,102 @@ try {
             aspect-ratio: 16/9;
             border: none;
             border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        body.dark-theme #videoPreview {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #374151;
+            font-weight: 500;
+            word-wrap: break-word;
+        }
+
+        body.dark-theme .form-group label {
+            color: var(--dark-text);
+        }
+
+        .form-group input[type="text"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background-color: #ffffff;
+            color: #111827;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input[type="text"]:focus {
+            border-color: var(--light-accent);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+        }
+
+        body.dark-theme .form-group input[type="text"] {
+            background-color: var(--dark-bg);
+            border-color: var(--dark-border);
+            color: var(--dark-text);
+        }
+
+        body.dark-theme .form-group input[type="text"]:focus {
+            border-color: var(--dark-accent);
+            box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.2);
+        }
+
+        .search-results {
+            margin-top: 2rem;
+            padding: 1rem;
+            background-color: #ffffff;
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+        }
+
+        body.dark-theme .search-results {
+            background-color: var(--dark-bg);
+            border-color: var(--dark-border);
+        }
+
+        .video-description {
+            color: #6b7280;
+            font-size: 0.9rem;
+            margin: 0.5rem 0;
+            line-height: 1.4;
+        }
+
+        body.dark-theme .video-description {
+            color: var(--dark-text-secondary);
+        }
+
+        #searchForm {
+            margin-bottom: 2rem;
+        }
+
+        #searchForm .form-group {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-end;
+        }
+
+        #searchForm input[type="text"] {
+            flex: 1;
+        }
+
+        .search-results .video-grid {
+            margin-top: 1rem;
         }
     </style>
 </head>
-<body>
+<body class="<?php echo $themeClass; ?>">
     <button class="theme-toggle" aria-label="Toggle theme">
         🌓
     </button>
@@ -175,18 +317,48 @@ try {
         <?php if ($list['user_id'] === $_SESSION['user_id']): ?>
             <div class="video-container">
                 <h2>Add New Video</h2>
+                <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"] . "?id=" . $list_id); ?>" id="searchForm">
+                    <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
+                    <input type="hidden" name="action" value="search_video">
+                    
+                    <div class="form-group">
+                        <label for="search_query">Search YouTube Videos</label>
+                        <input type="text" id="search_query" name="search_query" required>
+                        <button type="submit" class="button">Search</button>
+                    </div>
+                </form>
+
+                <?php if (isset($searchResults) && isset($searchResults['items'])): ?>
+                    <div class="search-results">
+                        <h3>Search Results</h3>
+                        <div class="video-grid">
+                            <?php foreach ($searchResults['items'] as $result): ?>
+                                <div class="video-card">
+                                    <img src="<?php echo htmlspecialchars($result['snippet']['thumbnails']['medium']['url']); ?>" 
+                                         alt="<?php echo htmlspecialchars($result['snippet']['title']); ?>" 
+                                         class="video-thumbnail">
+                                    <h3 class="video-title"><?php echo htmlspecialchars($result['snippet']['title']); ?></h3>
+                                    <p class="video-description"><?php echo htmlspecialchars(substr($result['snippet']['description'], 0, 100)) . '...'; ?></p>
+                                    
+                                    <form method="POST">
+                                        <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
+                                        <input type="hidden" name="action" value="add_video">
+                                        <input type="hidden" name="youtube_url" value="https://www.youtube.com/watch?v=<?php echo $result['id']['videoId']; ?>">
+                                        <button type="submit" class="button">Add to List</button>
+                                    </form>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
                 <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"] . "?id=" . $list_id); ?>" id="addVideoForm">
                     <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
                     <input type="hidden" name="action" value="add_video">
                     
                     <div class="form-group">
-                        <label for="youtube_url">YouTube Video URL</label>
-                        <input type="text" id="youtube_url" name="youtube_url" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="video_title">Video Title</label>
-                        <input type="text" id="video_title" name="video_title" required>
+                        <label for="youtube_url">Or Add Video by URL</label>
+                        <input type="text" id="youtube_url" name="youtube_url" placeholder="https://www.youtube.com/watch?v=...">
                     </div>
 
                     <div class="preview-container">
@@ -238,6 +410,16 @@ try {
     </footer>
 
     <script>
+        // Sync localStorage with cookie theme
+        const lastTheme = localStorage.getItem('lastTheme');
+        if (lastTheme === 'dark') {
+            document.body.classList.add('dark-theme');
+            document.cookie = "lastTheme=dark; path=/; max-age=31536000"; // 1 year
+        } else if (lastTheme === 'light') {
+            document.body.classList.remove('dark-theme');
+            document.cookie = "lastTheme=light; path=/; max-age=31536000";
+        }
+
         // YouTube URL validation and preview
         document.getElementById('youtube_url').addEventListener('input', function() {
             const url = this.value;
