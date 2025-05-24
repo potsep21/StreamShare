@@ -1,6 +1,6 @@
 <?php
-// YouTube API Configuration
-define('YOUTUBE_API_KEY', 'AIzaSyDvIZsjAP5n393XMg_L9HlZ2vKyuk3gF7Y'); // Your YouTube Data API key goes here
+// Include API keys (this file is not tracked in version control)
+require_once __DIR__ . '/api_keys.php';
 
 // YouTube API endpoints
 define('YOUTUBE_API_BASE_URL', 'https://www.googleapis.com/youtube/v3');
