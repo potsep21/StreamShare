@@ -323,7 +323,7 @@ $public_lists_count = getPublicListsCount($_SESSION['user_id']);
                                     </div>
                                     <p><?php echo htmlspecialchars($list['description']); ?></p>
                                     <div class="list-actions">
-                                        <a href="view_list.php?id=<?php echo $list['id']; ?>" class="button">View</a>
+                                        <a href="view_list.php?id=<?php echo $list['id']; ?>" class="button" onclick="localStorage.setItem('lastTheme', document.body.classList.contains('dark-theme') ? 'dark' : 'light')">View</a>
                                         <a href="edit_list.php?id=<?php echo $list['id']; ?>" class="button button-secondary">Edit</a>
                                     </div>
                                 </div>
