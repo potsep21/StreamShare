@@ -83,6 +83,17 @@ function initializeDatabase() {
             FOREIGN KEY (following_id) REFERENCES users(id) ON DELETE CASCADE
         ) ENGINE=InnoDB");
 
+        // Create oauth_tokens table for storing OAuth access and refresh tokens
+        $conn->exec("CREATE TABLE IF NOT EXISTS oauth_tokens (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            provider VARCHAR(50) NOT NULL,
+            refresh_token VARCHAR(255) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY user_provider (user_id, provider),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB");
+
         echo "Database and tables created successfully";
     } catch(PDOException $e) {
         die("Error creating database: " . $e->getMessage());

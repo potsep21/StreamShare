@@ -1,49 +1,64 @@
 <?php
 require_once '../config/database.php';
-require_once '../config/youtube.php';
 require_once '../includes/functions.php';
+require_once '../config/youtube.php';
+require_once '../config/youtube_oauth.php';
 
 // Check if user is logged in
 if (!isLoggedIn()) {
     redirect('login.php');
 }
 
-// Get theme preference from cookie
-$isDarkTheme = isset($_COOKIE['lastTheme']) && $_COOKIE['lastTheme'] === 'dark';
-$themeClass = $isDarkTheme ? 'dark-theme' : '';
-
-// Get list ID from URL
+// Check if list ID is provided
 if (!isset($_GET['id'])) {
     redirect('dashboard.php');
 }
-$list_id = (int)$_GET['id'];
 
-// Get list details
+$list_id = (int)$_GET['id'];
+$error_message = null;
+$videos = array();
+
 try {
     $conn = getDBConnection();
-    $stmt = $conn->prepare("SELECT * FROM content_lists WHERE id = ?");
+    
+    // Get list details
+    $stmt = $conn->prepare("
+        SELECT l.*, u.username 
+        FROM content_lists l
+        JOIN users u ON l.user_id = u.id
+        WHERE l.id = ?
+    ");
     $stmt->execute([$list_id]);
     $list = $stmt->fetch(PDO::FETCH_ASSOC);
-
+    
     // Check if list exists and user has access
-    if (!$list || ($list['is_private'] && $list['user_id'] !== $_SESSION['user_id'])) {
+    if (!$list || ($list['is_private'] == 1 && $list['user_id'] != $_SESSION['user_id'])) {
         redirect('dashboard.php');
     }
-
-    // Get list items (videos)
-    $stmt = $conn->prepare("SELECT * FROM list_items WHERE list_id = ? ORDER BY position ASC");
+    
+    // Get videos in the list
+    $stmt = $conn->prepare("SELECT * FROM list_items WHERE list_id = ? ORDER BY position");
     $stmt->execute([$list_id]);
     $videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // Handle video addition
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    
+    // Handle form submissions
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Verify CSRF token
         if (!isset($_POST['csrf_token']) || !verifyCSRFToken($_POST['csrf_token'])) {
             die('CSRF token validation failed');
         }
-
+        
         if ($_POST['action'] === 'add_video') {
             $youtube_url = sanitize($_POST['youtube_url']);
+            
+            // Check if user is authenticated with YouTube
+            if (!isYouTubeAuthenticated()) {
+                // Store the current URL to redirect back after authentication
+                $_SESSION['redirect_after_auth'] = "view_list.php?id=" . $list_id;
+                
+                // Redirect to the OAuth authorization URL
+                redirect(getYouTubeAuthUrl());
+            }
             
             // Extract YouTube ID from URL
             preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/', $youtube_url, $matches);
@@ -65,6 +80,10 @@ try {
                     
                     // Refresh the page to show new video
                     redirect("view_list.php?id=" . $list_id);
+                } else if (isset($videoDetails['error']) && $videoDetails['error'] === true) {
+                    // OAuth authentication required
+                    $_SESSION['redirect_after_auth'] = "view_list.php?id=" . $list_id;
+                    redirect(getYouTubeAuthUrl());
                 } else {
                     $error_message = "Could not fetch video details from YouTube";
                 }
@@ -84,12 +103,33 @@ try {
             }
         } elseif ($_POST['action'] === 'search_video') {
             $search_query = sanitize($_POST['search_query']);
-            $searchResults = searchYouTubeVideos($search_query);
+            
+            // Check if user is authenticated with YouTube
+            if (!isYouTubeAuthenticated()) {
+                // Store the current URL to redirect back after authentication
+                $_SESSION['redirect_after_auth'] = "view_list.php?id=" . $list_id;
+                
+                // Redirect to the OAuth authorization URL
+                redirect(getYouTubeAuthUrl());
+            } else {
+                // User is authenticated, perform the search
+                $searchResults = searchYouTubeVideos($search_query);
+            }
         }
     }
 
 } catch(PDOException $e) {
     $error_message = "Error: " . $e->getMessage();
+}
+
+// Check for YouTube authentication messages
+$youtube_auth_message = "";
+if (isset($_GET['youtube_auth'])) {
+    if ($_GET['youtube_auth'] === 'success') {
+        $youtube_auth_message = "Successfully authenticated with YouTube!";
+    } elseif ($_GET['youtube_auth'] === 'error') {
+        $youtube_auth_message = "YouTube authentication failed: " . (isset($_GET['message']) ? $_GET['message'] : "Unknown error");
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -273,133 +313,161 @@ try {
         #searchForm {
             margin-bottom: 2rem;
         }
-
-        #searchForm .form-group {
-            display: flex;
-            gap: 1rem;
-            align-items: flex-end;
+        
+        .auth-notice {
+            background-color: #e6f7ff;
+            border: 1px solid #91d5ff;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1.5rem;
+            color: #0050b3;
         }
-
-        #searchForm input[type="text"] {
-            flex: 1;
+        
+        body.dark-theme .auth-notice {
+            background-color: #112236;
+            border-color: #153450;
+            color: #4fadf7;
         }
-
-        .search-results .video-grid {
+        
+        .auth-button {
+            background-color: #1890ff;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: inline-block;
+            text-align: center;
+            text-decoration: none;
             margin-top: 1rem;
+        }
+        
+        .auth-button:hover {
+            background-color: #096dd9;
         }
     </style>
 </head>
-<body class="<?php echo $themeClass; ?>">
-    <button class="theme-toggle" aria-label="Toggle theme">
-        🌓
-    </button>
-
+<body class="<?php echo isset($_COOKIE['lastTheme']) && $_COOKIE['lastTheme'] === 'dark' ? 'dark-theme' : ''; ?>">
     <header>
-        <h1><?php echo htmlspecialchars($list['title']); ?></h1>
-        <p><?php echo htmlspecialchars($list['description']); ?></p>
+        <div class="logo">
+            <h1>StreamShare</h1>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="dashboard.php">Dashboard</a></li>
+                <li><a href="discover.php">Discover</a></li>
+                <li><a href="profile.php">Profile</a></li>
+                <li><a href="logout.php">Logout</a></li>
+                <li>
+                    <button class="theme-toggle" aria-label="Toggle Theme">
+                        <span class="icon-light">☀️</span>
+                        <span class="icon-dark">🌙</span>
+                    </button>
+                </li>
+            </ul>
+        </nav>
     </header>
 
-    <nav>
-        <ul>
-            <li><a href="../index.php">Home</a></li>
-            <li><a href="dashboard.php">Dashboard</a></li>
-            <li><a href="profile.php">Profile</a></li>
-            <li><a href="search.php">Search</a></li>
-            <li><a href="logout.php">Logout</a></li>
-        </ul>
-    </nav>
+    <main>
+        <div class="container">
+            <h1><?php echo htmlspecialchars($list['title']); ?></h1>
+            <p class="list-info">Created by: <a href="profile.php?username=<?php echo htmlspecialchars($list['username']); ?>"><?php echo htmlspecialchars($list['username']); ?></a> | <?php echo $list['is_private'] ? 'Private' : 'Public'; ?> list</p>
+            
+            <?php if ($list['description']): ?>
+                <p class="list-description"><?php echo nl2br(htmlspecialchars($list['description'])); ?></p>
+            <?php endif; ?>
 
-    <main class="container">
-        <?php if (isset($error_message)): ?>
-            <div class="error-message"><?php echo $error_message; ?></div>
-        <?php endif; ?>
+            <?php if (!empty($youtube_auth_message)): ?>
+                <div class="auth-notice">
+                    <?php echo htmlspecialchars($youtube_auth_message); ?>
+                </div>
+            <?php endif; ?>
 
-        <?php if ($list['user_id'] === $_SESSION['user_id']): ?>
-            <div class="video-container">
-                <h2>Add New Video</h2>
-                <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"] . "?id=" . $list_id); ?>" id="searchForm">
-                    <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
-                    <input type="hidden" name="action" value="search_video">
-                    
-                    <div class="form-group">
-                        <label for="search_query">Search YouTube Videos</label>
-                        <input type="text" id="search_query" name="search_query" required>
-                        <button type="submit" class="button">Search</button>
-                    </div>
-                </form>
-
-                <?php if (isset($searchResults) && isset($searchResults['items'])): ?>
-                    <div class="search-results">
-                        <h3>Search Results</h3>
-                        <div class="video-grid">
-                            <?php foreach ($searchResults['items'] as $result): ?>
-                                <div class="video-card">
-                                    <img src="<?php echo htmlspecialchars($result['snippet']['thumbnails']['medium']['url']); ?>" 
-                                         alt="<?php echo htmlspecialchars($result['snippet']['title']); ?>" 
-                                         class="video-thumbnail">
-                                    <h3 class="video-title"><?php echo htmlspecialchars($result['snippet']['title']); ?></h3>
-                                    <p class="video-description"><?php echo htmlspecialchars(substr($result['snippet']['description'], 0, 100)) . '...'; ?></p>
-                                    
-                                    <form method="POST">
-                                        <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
-                                        <input type="hidden" name="action" value="add_video">
-                                        <input type="hidden" name="youtube_url" value="https://www.youtube.com/watch?v=<?php echo $result['id']['videoId']; ?>">
-                                        <button type="submit" class="button">Add to List</button>
-                                    </form>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                <?php endif; ?>
-
-                <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"] . "?id=" . $list_id); ?>" id="addVideoForm">
-                    <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
-                    <input type="hidden" name="action" value="add_video">
-                    
-                    <div class="form-group">
-                        <label for="youtube_url">Or Add Video by URL</label>
-                        <input type="text" id="youtube_url" name="youtube_url" placeholder="https://www.youtube.com/watch?v=...">
-                    </div>
-
-                    <div class="preview-container">
-                        <h3>Preview</h3>
-                        <iframe id="videoPreview" src="" frameborder="0" allowfullscreen></iframe>
-                    </div>
-
-                    <button type="submit" class="button">Add Video</button>
-                </form>
-            </div>
-        <?php endif; ?>
-
-        <div class="video-container">
-            <h2>Videos</h2>
-            <?php if (empty($videos)): ?>
-                <p>No videos in this list yet.</p>
-            <?php else: ?>
+            <?php if (!empty($error_message)): ?>
+                <div class="error-message">
+                    <?php echo htmlspecialchars($error_message); ?>
+                </div>
+            <?php endif; ?>
+            
+            <?php if (count($videos) > 0): ?>
+                <h2>Videos</h2>
                 <div class="video-grid">
                     <?php foreach ($videos as $video): ?>
                         <div class="video-card">
-                            <img src="https://img.youtube.com/vi/<?php echo htmlspecialchars($video['youtube_id']); ?>/maxresdefault.jpg" 
-                                 alt="<?php echo htmlspecialchars($video['title']); ?>" 
-                                 class="video-thumbnail">
+                            <iframe 
+                                width="100%" 
+                                src="https://www.youtube.com/embed/<?php echo htmlspecialchars($video['youtube_id']); ?>" 
+                                title="<?php echo htmlspecialchars($video['title']); ?>"
+                                frameborder="0" 
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                allowfullscreen>
+                            </iframe>
                             <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
                             
-                            <div class="video-actions">
-                                <a href="https://www.youtube.com/watch?v=<?php echo htmlspecialchars($video['youtube_id']); ?>" 
-                                   target="_blank" 
-                                   class="button">Watch on YouTube</a>
-                                
-                                <?php if ($list['user_id'] === $_SESSION['user_id']): ?>
-                                    <form method="POST" style="display: inline;">
+                            <?php if ($list['user_id'] === $_SESSION['user_id']): ?>
+                                <div class="video-actions">
+                                    <form method="POST">
                                         <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
                                         <input type="hidden" name="action" value="remove_video">
                                         <input type="hidden" name="video_id" value="<?php echo $video['id']; ?>">
-                                        <button type="submit" class="button button-secondary">Remove</button>
+                                        <button type="submit" class="button button-danger">Remove</button>
                                     </form>
-                                <?php endif; ?>
-                            </div>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
+                </div>
+            <?php else: ?>
+                <p>This list has no videos yet.</p>
+            <?php endif; ?>
+
+            <?php if ($list['user_id'] === $_SESSION['user_id']): ?>
+                <div class="video-container">
+                    <h2>Add New Video</h2>
+                    
+                    <?php if (!isYouTubeAuthenticated()): ?>
+                        <div class="auth-notice">
+                            <p>YouTube OAuth authentication is required for searching videos. Please authenticate with YouTube to proceed.</p>
+                            <a href="<?php echo getYouTubeAuthUrl(); ?>" class="auth-button">Authenticate with YouTube</a>
+                        </div>
+                    <?php else: ?>
+                        <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"] . "?id=" . $list_id); ?>" id="searchForm">
+                            <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
+                            <input type="hidden" name="action" value="search_video">
+                            
+                            <div class="form-group">
+                                <label for="search_query">Search YouTube Videos</label>
+                                <input type="text" id="search_query" name="search_query" required>
+                                <button type="submit" class="button">Search</button>
+                            </div>
+                        </form>
+                    <?php endif; ?>
+
+                    <?php if (isset($searchResults) && isset($searchResults['items'])): ?>
+                        <div class="search-results">
+                            <h3>Search Results</h3>
+                            <div class="video-grid">
+                                <?php foreach ($searchResults['items'] as $result): ?>
+                                    <div class="video-card">
+                                        <img src="<?php echo htmlspecialchars($result['snippet']['thumbnails']['medium']['url']); ?>" 
+                                             alt="<?php echo htmlspecialchars($result['snippet']['title']); ?>" 
+                                             class="video-thumbnail">
+                                        <h3 class="video-title"><?php echo htmlspecialchars($result['snippet']['title']); ?></h3>
+                                        <p class="video-description"><?php echo htmlspecialchars(substr($result['snippet']['description'], 0, 100)) . '...'; ?></p>
+                                        
+                                        <form method="POST">
+                                            <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
+                                            <input type="hidden" name="action" value="add_video">
+                                            <input type="hidden" name="youtube_url" value="https://www.youtube.com/watch?v=<?php echo $result['id']['videoId']; ?>">
+                                            <button type="submit" class="button">Add to List</button>
+                                        </form>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
         </div>
@@ -421,7 +489,7 @@ try {
         }
 
         // YouTube URL validation and preview
-        document.getElementById('youtube_url').addEventListener('input', function() {
+        document.getElementById('youtube_url')?.addEventListener('input', function() {
             const url = this.value;
             const previewContainer = document.querySelector('.preview-container');
             const videoPreview = document.getElementById('videoPreview');
@@ -438,7 +506,7 @@ try {
                 
                 // Auto-fill title if empty
                 const titleInput = document.getElementById('video_title');
-                if (!titleInput.value) {
+                if (titleInput && !titleInput.value) {
                     // Fetch video title using noembed.com API
                     fetch(`https://noembed.com/embed?url=${url}`)
                         .then(response => response.json())
@@ -449,10 +517,18 @@ try {
                         })
                         .catch(error => console.error('Error fetching video title:', error));
                 }
-            } else {
+            } else if (previewContainer && videoPreview) {
                 previewContainer.style.display = 'none';
                 videoPreview.src = '';
             }
+        });
+        
+        // Handle theme toggling
+        document.querySelector('.theme-toggle')?.addEventListener('click', function() {
+            document.body.classList.toggle('dark-theme');
+            const isDark = document.body.classList.contains('dark-theme');
+            localStorage.setItem('lastTheme', isDark ? 'dark' : 'light');
+            document.cookie = `lastTheme=${isDark ? 'dark' : 'light'}; path=/; max-age=31536000`;
         });
     </script>
 
