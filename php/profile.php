@@ -20,6 +20,7 @@ if (isset($_GET['id'])) {
     $profile_id = $_SESSION['user_id'];
 } else {
     // Redirect to login if not logged in and no profile specified
+    storeIntendedUrl();
     redirect('login.php');
 }
 

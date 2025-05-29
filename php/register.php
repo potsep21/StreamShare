@@ -82,7 +82,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $conn->prepare("INSERT INTO users (firstname, lastname, username, email, password) VALUES (?, ?, ?, ?, ?)");
                 $stmt->execute([$firstname, $lastname, $username, $email, $hashed_password]);
 
-                $success = true;
+                // Get the newly created user ID
+                $user_id = $conn->lastInsertId();
+                
+                // Set session variables for automatic login
+                $_SESSION['user_id'] = $user_id;
+                $_SESSION['username'] = $username;
+                
+                // Redirect to dashboard
+                redirect("dashboard.php");
             }
         } catch(PDOException $e) {
             $errors[] = "Registration failed: " . $e->getMessage();

@@ -2,19 +2,27 @@
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
+// If user is already logged in, redirect to dashboard
+if (isLoggedIn()) {
+    redirect('dashboard.php');
+}
+
+// Initialize variables
+$username = '';
 $errors = [];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// Process form submission
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Verify CSRF token
     if (!isset($_POST['csrf_token']) || !verifyCSRFToken($_POST['csrf_token'])) {
-        die('CSRF token validation failed');
+        die("CSRF token validation failed");
     }
-
-    // Sanitize input
+    
+    // Sanitize and validate user input
     $username = sanitize($_POST['username']);
-    $password = $_POST['password'];
-
-    // Validate input
+    $password = $_POST['password']; // Don't sanitize password
+    
+    // Validate username
     if (empty($username)) {
         $errors[] = "Username is required";
     }
@@ -37,8 +45,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
                 
-                // Redirect to dashboard
-                redirect("dashboard.php");
+                // Redirect to intended URL or dashboard
+                redirect(getIntendedUrl());
             } else {
                 $errors[] = "Invalid username or password";
             }

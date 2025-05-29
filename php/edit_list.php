@@ -6,6 +6,7 @@ require_once '../config/youtube_oauth.php';
 
 // Check if user is logged in
 if (!isLoggedIn()) {
+    storeIntendedUrl();
     redirect('login.php');
 }
 

@@ -4,6 +4,7 @@ require_once '../config/database.php';
 
 // Check if user is logged in
 if (!isLoggedIn()) {
+    storeIntendedUrl();
     redirect('login.php');
 }
 

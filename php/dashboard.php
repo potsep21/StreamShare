@@ -4,6 +4,7 @@ require_once '../includes/functions.php';
 
 // Check if user is logged in
 if (!isLoggedIn()) {
+    storeIntendedUrl();
     redirect('login.php');
 }
 

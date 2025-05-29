@@ -168,4 +168,23 @@ function timeAgo($datetime) {
         return $years . " year" . ($years > 1 ? "s" : "") . " ago";
     }
 }
+
+// Function to store the intended redirect URL
+function storeIntendedUrl() {
+    // Don't store login or register pages as intended URLs
+    if (!isset($_SERVER['REQUEST_URI']) || 
+        strpos($_SERVER['REQUEST_URI'], 'login.php') !== false || 
+        strpos($_SERVER['REQUEST_URI'], 'register.php') !== false) {
+        return;
+    }
+    
+    $_SESSION['intended_url'] = $_SERVER['REQUEST_URI'];
+}
+
+// Function to get and clear the intended URL
+function getIntendedUrl() {
+    $url = isset($_SESSION['intended_url']) ? $_SESSION['intended_url'] : 'dashboard.php';
+    unset($_SESSION['intended_url']);
+    return $url;
+}
 ?> 
