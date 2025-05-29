@@ -1,9 +1,11 @@
 // Theme handling
 document.addEventListener('DOMContentLoaded', () => {
-    // Check for saved theme preference
+    // Apply theme based on cookie right away to prevent flicker
     const savedTheme = getCookie('theme');
     if (savedTheme === 'dark') {
         document.body.classList.add('dark-theme');
+    } else if (savedTheme === 'light') {
+        document.body.classList.remove('dark-theme');
     }
 
     // Theme toggle functionality
