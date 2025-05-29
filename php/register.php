@@ -98,76 +98,146 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Register - StreamShare</title>
     <link rel="stylesheet" href="../css/styles.css">
     <style>
+        /* CSS Reset for Form Elements */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         .form-container {
-            max-width: 500px;
+            max-width: 400px;
             margin: 2rem auto;
             padding: 2rem;
-            background-color: var(--light-secondary);
+            background-color: var(--light-form-container-bg); /* Use theme variable */
             border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            color: var(--light-text); /* Adjust text color for light theme */
         }
 
         body.dark-theme .form-container {
-            background-color: var(--dark-secondary);
+            background-color: var(--dark-form-container-bg); /* Use dark theme variable */
+            color: var(--dark-text);
         }
 
         .form-group {
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
+            width: 100%;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 0.5rem;
-        }
-
-        .form-group input {
             width: 100%;
-            padding: 0.5rem;
-            border: 1px solid var(--light-border);
-            border-radius: 4px;
-            background-color: var(--light-bg);
-            color: var(--light-text);
+            margin-bottom: 0.5rem;
+            color: #000000; /* Set to black for light theme */
+            font-size: 16px;
+            font-weight: normal;
         }
 
-        body.dark-theme .form-group input {
-            background-color: var(--dark-bg);
-            color: var(--dark-text);
-            border-color: var(--dark-border);
+        body.dark-theme .form-group label {
+            color: #f0f0f0; /* Light color for dark theme */
+        }
+
+        /* Very specific rules to ensure identical appearance for all input types */
+        .form-group input[type="text"],
+        .form-group input[type="email"],
+        .form-group input[type="password"] {
+            display: block;
+            /* width: 100% !important; */ /* Let specific rules below handle width */
+            height: 45px !important;
+            padding: 12px 15px !important;
+            border: 1px solid var(--light-border) !important; /* Use theme variable */
+            border-radius: 8px !important;
+            background-color: var(--light-bg) !important; /* Use theme variable */
+            color: var(--light-text) !important; /* Use theme variable */
+            font-size: 16px !important;
+            font-family: inherit !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            appearance: none !important;
+        }
+
+        body.dark-theme .form-group input[type="text"],
+        body.dark-theme .form-group input[type="email"],
+        body.dark-theme .form-group input[type="password"] {
+            border-color: var(--dark-border) !important;
+            background-color: #3d3d3d !important; /* Keep dark theme specific color */
+            color: var(--dark-text) !important;
+        }
+
+        /* Additional specific targeting for register form */
+        #register-form .form-group input[type="text"],
+        #register-form .form-group input[type="email"],
+        #register-form .form-group input[type="password"] {
+            width: 320px !important;
+            max-width: 320px !important;
+            min-width: 320px !important;
+            box-sizing: border-box !important;
+        }
+
+        /* Target specific inputs by ID */
+        #firstname, #lastname, #username {
+            width: 320px !important;
+            max-width: 320px !important;
+            min-width: 320px !important;
+        }
+
+        .form-group input:focus {
+            outline: none !important;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.5) !important;
         }
 
         .error-message {
-            color: #dc3545;
-            margin-bottom: 1rem;
-            padding: 0.5rem;
-            border: 1px solid #dc3545;
-            border-radius: 4px;
-            background-color: #f8d7da;
+            color: #ff6b6b;
+            margin-bottom: 1.5rem;
+            padding: 0.75rem;
+            border: 1px solid #ff6b6b;
+            border-radius: 8px;
+            background-color: rgba(255, 107, 107, 0.1);
         }
 
         .success-message {
-            color: #28a745;
-            margin-bottom: 1rem;
-            padding: 0.5rem;
-            border: 1px solid #28a745;
-            border-radius: 4px;
-            background-color: #d4edda;
+            color: #4cd964;
+            margin-bottom: 1.5rem;
+            padding: 0.75rem;
+            border: 1px solid #4cd964;
+            border-radius: 8px;
+            background-color: rgba(76, 217, 100, 0.1);
         }
 
         .submit-button {
-            background-color: var(--light-accent);
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
+            display: block;
             width: 100%;
-        }
-
-        body.dark-theme .submit-button {
-            background-color: var(--dark-accent);
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background-color: #0066cc;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
         }
 
         .submit-button:hover {
-            opacity: 0.9;
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        a {
+            color: #0066cc;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        a:hover {
+            color: #0056b3;
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -186,6 +256,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <li><a href="../index.php">Home</a></li>
             <li><a href="../about.php">About</a></li>
             <li><a href="../help.php">Help</a></li>
+            <li><a href="search.php">Search</a></li>
             <li><a href="register.php">Register</a></li>
             <li><a href="login.php">Login</a></li>
         </ul>
@@ -208,7 +279,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 <?php endif; ?>
 
-                <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>">
+                <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" id="register-form">
                     <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
                     
                     <div class="form-group">
