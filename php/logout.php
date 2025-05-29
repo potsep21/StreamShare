@@ -1,5 +1,5 @@
 <?php
-require_once '../includes/functions.php';
+require_once '../includes/functions_fixed.php';
 
 // Destroy the session
 session_destroy();

@@ -11,6 +11,7 @@ $is_following = false;
 $is_own_profile = false;
 $error_message = '';
 $success_message = '';
+$activities = []; // Initialize activities as empty array
 
 // Check if user ID is provided
 if (isset($_GET['id'])) {
@@ -112,7 +113,6 @@ try {
     }
     
     // Get user activities (public lists created, videos added to public lists, and new followers)
-    $activities = [];
     
     // 1. Get public lists created by people the profile owner follows
     $publicListsStmt = $conn->prepare("
