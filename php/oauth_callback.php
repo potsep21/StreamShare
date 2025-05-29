@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/functions_fixed.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/youtube_oauth.php';
 

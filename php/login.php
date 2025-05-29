@@ -1,6 +1,6 @@
 <?php
 require_once '../config/database.php';
-require_once '../includes/functions.php';
+require_once '../includes/functions_fixed.php';
 
 // If user is already logged in, redirect to dashboard
 if (isLoggedIn()) {

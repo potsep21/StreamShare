@@ -1,0 +1,32 @@
+version: '3'
+
+services:
+  web:
+    build: .
+    ports:
+      - "80:80"
+    volumes:
+      - .:/var/www/html
+      - ./docker/php.ini:/usr/local/etc/php/php.ini
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_USER=streamshare
+      - DB_PASS=streamshare_password
+      - DB_NAME=streamshare
+
+  db:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: streamshare
+      MYSQL_USER: streamshare
+      MYSQL_PASSWORD: streamshare_password
+      MYSQL_ROOT_PASSWORD: root_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data: 

@@ -1,6 +1,6 @@
 <?php
 require_once '../config/database.php';
-require_once '../includes/functions.php';
+require_once '../includes/functions_fixed.php';
 require_once '../config/youtube.php';
 require_once '../config/youtube_oauth.php';
 
@@ -563,8 +563,8 @@ if (isset($_GET['youtube_auth'])) {
         </div>
         <nav>
             <ul>
+                <li><a href="../index.php">Home</a></li>
                 <li><a href="dashboard.php">Dashboard</a></li>
-                <li><a href="discover.php">Discover</a></li>
                 <li><a href="profile.php">Profile</a></li>
                 <li><a href="export_data.php">Export Data</a></li>
                 <li><a href="search.php">Search</a></li>

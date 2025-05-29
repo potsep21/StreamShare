@@ -64,43 +64,61 @@ StreamShare is a web application that allows users to create and share lists of 
 - Modern web browser
 - YouTube OAuth credentials (required for video search)
 
-## Installation
+## Docker Setup
 
-1. Clone the repository to your web server directory:
-   ```bash
-   git clone https://github.com/yourusername/streamshare.git
+This application can be run using Docker and Docker Compose.
+
+### Prerequisites
+
+- Docker
+- Docker Compose
+
+### Running the Application
+
+1. Clone the repository:
+   ```
+   git clone <repository-url>
+   cd streamshare
    ```
 
-2. Create a MySQL database for the application.
-
-3. Configure the database connection:
-   - Open `config/database.php`
-   - Update the following constants with your database credentials:
-     ```php
-     define('DB_HOST', 'localhost');
-     define('DB_USER', 'your_username');
-     define('DB_PASS', 'your_password');
-     define('DB_NAME', 'streamshare');
-     ```
-
-4. Set up YouTube OAuth credentials:
-   - Go to the [Google Cloud Console](https://console.cloud.google.com/)
-   - Create a new project
-   - Enable the YouTube Data API v3
-   - Create OAuth 2.0 credentials (Web application type)
-   - Add authorized redirect URIs: `http://your-domain.com/php/oauth_callback.php`
-   - Copy the OAuth client ID and client secret to your configuration:
-     - Copy `config/api_keys.example.php` to `config/api_keys.php`
-     - Add your OAuth credentials:
-       ```php
-       $YOUTUBE_OAUTH_CLIENT_ID = 'your_client_id_here';
-       $YOUTUBE_OAUTH_CLIENT_SECRET = 'your_client_secret_here';
-       ```
-
-5. Initialize the database by visiting:
+2. Start the Docker containers:
    ```
-   http://your-domain/php/init_db.php
+   docker-compose up -d
    ```
+
+3. Initialize the database:
+   Access http://localhost/php/init_db.php in your browser
+
+4. Access the application:
+   Open http://localhost in your web browser
+
+### Docker Environment
+
+The Docker setup includes:
+
+- PHP 8.0 with Apache
+- MySQL 8.0 database
+
+### Environment Variables
+
+The following environment variables are set in the docker-compose.yml file:
+
+- `DB_HOST`: Database hostname (db)
+- `DB_USER`: Database username (streamshare)
+- `DB_PASS`: Database password (streamshare_password)
+- `DB_NAME`: Database name (streamshare)
+
+You can modify these in the docker-compose.yml file if needed.
+
+## Manual Setup
+
+If you prefer to set up the application without Docker:
+
+1. Set up a PHP environment with Apache or Nginx
+2. Create a MySQL database
+3. Update the database connection details in `config/database.php`
+4. Run the database initialization script by accessing `php/init_db.php`
+5. Configure your YouTube OAuth credentials in `config/api_keys.php`
 
 ## Directory Structure
 
