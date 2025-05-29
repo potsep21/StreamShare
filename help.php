@@ -1,5 +1,6 @@
 <?php
 require_once 'includes/functions.php';
+require_once 'config/database.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -30,6 +31,7 @@ require_once 'includes/functions.php';
             <?php else: ?>
                 <li><a href="about.php">About</a></li>
                 <li><a href="help.php">Help</a></li>
+                <li><a href="php/search.php">Search</a></li>
                 <li><a href="php/register.php">Register</a></li>
                 <li><a href="php/login.php">Login</a></li>
             <?php endif; ?>
