@@ -22,57 +22,111 @@ try {
     
     // Process form submission
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        // Get form data
-        $firstname = sanitize($_POST['firstname'] ?? '');
-        $lastname = sanitize($_POST['lastname'] ?? '');
-        $bio = sanitize($_POST['bio'] ?? '');
-        $current_password = $_POST['current_password'] ?? '';
-        $new_password = $_POST['new_password'] ?? '';
-        $confirm_password = $_POST['confirm_password'] ?? '';
-        
-        // Check if current password was provided
-        if (!empty($new_password) || !empty($confirm_password)) {
-            if (empty($current_password)) {
-                $error_message = "Current password is required to change password";
+        // Handle account deletion
+        if (isset($_POST['action']) && $_POST['action'] === 'delete_account') {
+            // Verify password for deletion
+            $delete_password = $_POST['delete_password'] ?? '';
+            
+            if (empty($delete_password)) {
+                $error_message = "Password is required to delete your account";
             } else {
-                // Verify current password
+                // Verify password
                 $stmt = $conn->prepare("SELECT password FROM users WHERE id = ?");
                 $stmt->execute([$user_id]);
                 $user = $stmt->fetch(PDO::FETCH_ASSOC);
                 
-                if (!$user || !password_verify($current_password, $user['password'])) {
-                    $error_message = "Current password is incorrect";
-                } else if (empty($new_password)) {
-                    $error_message = "New password cannot be empty";
-                } else if ($new_password !== $confirm_password) {
-                    $error_message = "New passwords do not match";
-                } else if (strlen($new_password) < 8) {
-                    $error_message = "New password must be at least 8 characters";
+                if (!$user || !password_verify($delete_password, $user['password'])) {
+                    $error_message = "Password is incorrect";
+                } else {
+                    // Start transaction for safer deletion
+                    $conn->beginTransaction();
+                    
+                    try {
+                        // Delete all user's content lists and their items (cascading delete will handle list_items)
+                        $stmt = $conn->prepare("DELETE FROM content_lists WHERE user_id = ?");
+                        $stmt->execute([$user_id]);
+                        
+                        // Delete follows relationships
+                        $stmt = $conn->prepare("DELETE FROM follows WHERE follower_id = ? OR following_id = ?");
+                        $stmt->execute([$user_id, $user_id]);
+                        
+                        // Delete OAuth tokens
+                        $stmt = $conn->prepare("DELETE FROM oauth_tokens WHERE user_id = ?");
+                        $stmt->execute([$user_id]);
+                        
+                        // Finally delete the user
+                        $stmt = $conn->prepare("DELETE FROM users WHERE id = ?");
+                        $stmt->execute([$user_id]);
+                        
+                        // Commit the transaction
+                        $conn->commit();
+                        
+                        // Destroy session
+                        session_destroy();
+                        
+                        // Redirect to home page with message
+                        redirect('../index.php?account_deleted=1');
+                        
+                    } catch (Exception $e) {
+                        // Roll back the transaction on error
+                        $conn->rollBack();
+                        $error_message = "Could not delete account: " . $e->getMessage();
+                    }
                 }
             }
-        }
-        
-        // If no errors, update profile
-        if (empty($error_message)) {
-            // Prepare SQL statement based on whether password is being updated
-            if (!empty($new_password)) {
-                $stmt = $conn->prepare("
-                    UPDATE users 
-                    SET firstname = ?, lastname = ?, bio = ?, password = ? 
-                    WHERE id = ?
-                ");
-                $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-                $stmt->execute([$firstname, $lastname, $bio, $hashed_password, $user_id]);
-            } else {
-                $stmt = $conn->prepare("
-                    UPDATE users 
-                    SET firstname = ?, lastname = ?, bio = ? 
-                    WHERE id = ?
-                ");
-                $stmt->execute([$firstname, $lastname, $bio, $user_id]);
+        } else {
+            // Get form data for profile update
+            $firstname = sanitize($_POST['firstname'] ?? '');
+            $lastname = sanitize($_POST['lastname'] ?? '');
+            $bio = sanitize($_POST['bio'] ?? '');
+            $current_password = $_POST['current_password'] ?? '';
+            $new_password = $_POST['new_password'] ?? '';
+            $confirm_password = $_POST['confirm_password'] ?? '';
+            
+            // Check if current password was provided
+            if (!empty($new_password) || !empty($confirm_password)) {
+                if (empty($current_password)) {
+                    $error_message = "Current password is required to change password";
+                } else {
+                    // Verify current password
+                    $stmt = $conn->prepare("SELECT password FROM users WHERE id = ?");
+                    $stmt->execute([$user_id]);
+                    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if (!$user || !password_verify($current_password, $user['password'])) {
+                        $error_message = "Current password is incorrect";
+                    } else if (empty($new_password)) {
+                        $error_message = "New password cannot be empty";
+                    } else if ($new_password !== $confirm_password) {
+                        $error_message = "New passwords do not match";
+                    } else if (strlen($new_password) < 8) {
+                        $error_message = "New password must be at least 8 characters";
+                    }
+                }
             }
             
-            $success_message = "Profile updated successfully";
+            // If no errors, update profile
+            if (empty($error_message)) {
+                // Prepare SQL statement based on whether password is being updated
+                if (!empty($new_password)) {
+                    $stmt = $conn->prepare("
+                        UPDATE users 
+                        SET firstname = ?, lastname = ?, bio = ?, password = ? 
+                        WHERE id = ?
+                    ");
+                    $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+                    $stmt->execute([$firstname, $lastname, $bio, $hashed_password, $user_id]);
+                } else {
+                    $stmt = $conn->prepare("
+                        UPDATE users 
+                        SET firstname = ?, lastname = ?, bio = ? 
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([$firstname, $lastname, $bio, $user_id]);
+                }
+                
+                $success_message = "Profile updated successfully";
+            }
         }
     }
     
@@ -338,6 +392,37 @@ try {
             <div class="form-actions">
                 <a href="profile.php" class="btn-cancel">Cancel</a>
                 <button type="submit" class="btn-submit">Save Changes</button>
+            </div>
+        </form>
+        
+        <!-- Add new Delete Account section -->
+        <form method="POST" class="profile-form" style="margin-top: 2rem; background-color: rgba(220,53,69,0.2);">
+            <h2 style="color: #dc3545;">Delete Account</h2>
+            
+            <div class="form-section" style="border-color: rgba(220,53,69,0.2);">
+                <h3 style="color: #dc3545;">Delete Your Account</h3>
+                <p class="form-note" style="color: rgba(255,255,255,0.8);">
+                    Warning: This action is permanent and cannot be undone. All your data will be deleted including:
+                </p>
+                <ul style="color: rgba(255,255,255,0.8); margin-left: 1.5rem; margin-bottom: 1rem;">
+                    <li>Your profile information</li>
+                    <li>All content lists you have created</li>
+                    <li>All your following/follower relationships</li>
+                </ul>
+                
+                <div class="form-group">
+                    <label for="delete_password">Enter your password to confirm deletion</label>
+                    <input type="password" id="delete_password" name="delete_password" class="form-control" required>
+                </div>
+                
+                <div style="display: flex; justify-content: center; margin-top: 1.5rem;">
+                    <button type="submit" name="action" value="delete_account" 
+                            style="background-color: #dc3545; color: white; border: none; padding: 12px 30px; border-radius: 30px; 
+                                  font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s ease;"
+                            onclick="return confirm('Are you absolutely sure you want to delete your account? This action cannot be undone.')">
+                        Delete My Account
+                    </button>
+                </div>
             </div>
         </form>
     </main>

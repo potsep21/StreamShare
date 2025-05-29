@@ -1,6 +1,10 @@
 <?php
 require_once 'includes/functions.php';
 require_once 'config/database.php';
+
+// Initialize message variables
+$error_message = '';
+$success_message = '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -430,6 +434,18 @@ require_once 'config/database.php';
             endif;
         endif; 
         ?>
+
+        <?php if ($error_message): ?>
+            <div class="error-message"><?php echo $error_message; ?></div>
+        <?php endif; ?>
+        
+        <?php if ($success_message): ?>
+            <div class="success-message"><?php echo $success_message; ?></div>
+        <?php endif; ?>
+        
+        <?php if (isset($_GET['account_deleted']) && $_GET['account_deleted'] == 1): ?>
+            <div class="success-message" style="margin-bottom: 20px;">Your account has been successfully deleted. All your data has been removed from our system.</div>
+        <?php endif; ?>
     </main>
 
     <footer>
