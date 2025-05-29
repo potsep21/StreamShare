@@ -32,8 +32,14 @@ try {
     $list = $stmt->fetch(PDO::FETCH_ASSOC);
     
     // Check if list exists and user has access
-    if (!$list || ($list['is_private'] == 1 && $list['user_id'] != $_SESSION['user_id'])) {
+    if (!$list) {
+        // List not found
+        $error_message = "List not found.";
         redirect('dashboard.php');
+    } else if ($list['is_private'] == 1 && $list['user_id'] != $_SESSION['user_id']) {
+        // Private list and not the owner
+        $error_message = "You don't have permission to access this private list.";
+        redirect('dashboard.php?error=' . urlencode($error_message));
     }
     
     // Get videos in the list
@@ -41,80 +47,11 @@ try {
     $stmt->execute([$list_id]);
     $videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Handle form submissions
+    // Handle form submissions (only check for authentication messages now)
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Verify CSRF token
         if (!isset($_POST['csrf_token']) || !verifyCSRFToken($_POST['csrf_token'])) {
             die('CSRF token validation failed');
-        }
-        
-        if ($_POST['action'] === 'add_video') {
-            $youtube_url = sanitize($_POST['youtube_url']);
-            
-            // Check if user is authenticated with YouTube
-            if (!isYouTubeAuthenticated()) {
-                // Store the current URL to redirect back after authentication
-                $_SESSION['redirect_after_auth'] = "view_list.php?id=" . $list_id;
-                
-                // Redirect to the OAuth authorization URL
-                redirect(getYouTubeAuthUrl());
-            }
-            
-            // Extract YouTube ID from URL
-            preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/', $youtube_url, $matches);
-            if (!empty($matches[1])) {
-                $youtube_id = $matches[1];
-                
-                // Get video details from YouTube API
-                $videoDetails = getYouTubeVideoDetails($youtube_id);
-                if (isset($videoDetails['items'][0])) {
-                    $videoData = $videoDetails['items'][0]['snippet'];
-                    $video_title = $videoData['title'];
-                    
-                    // Get the next position
-                    $position = count($videos) + 1;
-
-                    // Insert video
-                    $stmt = $conn->prepare("INSERT INTO list_items (list_id, title, youtube_id, position) VALUES (?, ?, ?, ?)");
-                    $stmt->execute([$list_id, $video_title, $youtube_id, $position]);
-                    
-                    // Refresh the page to show new video
-                    redirect("view_list.php?id=" . $list_id);
-                } else if (isset($videoDetails['error']) && $videoDetails['error'] === true) {
-                    // OAuth authentication required
-                    $_SESSION['redirect_after_auth'] = "view_list.php?id=" . $list_id;
-                    redirect(getYouTubeAuthUrl());
-                } else {
-                    $error_message = "Could not fetch video details from YouTube";
-                }
-            } else {
-                $error_message = "Invalid YouTube URL";
-            }
-        } elseif ($_POST['action'] === 'remove_video') {
-            $video_id = (int)$_POST['video_id'];
-            
-            // Verify user owns the list before removing video
-            if ($list['user_id'] === $_SESSION['user_id']) {
-                $stmt = $conn->prepare("DELETE FROM list_items WHERE id = ? AND list_id = ?");
-                $stmt->execute([$video_id, $list_id]);
-                
-                // Refresh the page
-                redirect("view_list.php?id=" . $list_id);
-            }
-        } elseif ($_POST['action'] === 'search_video') {
-            $search_query = sanitize($_POST['search_query']);
-            
-            // Check if user is authenticated with YouTube
-            if (!isYouTubeAuthenticated()) {
-                // Store the current URL to redirect back after authentication
-                $_SESSION['redirect_after_auth'] = "view_list.php?id=" . $list_id;
-                
-                // Redirect to the OAuth authorization URL
-                redirect(getYouTubeAuthUrl());
-            } else {
-                // User is authenticated, perform the search
-                $searchResults = searchYouTubeVideos($search_query);
-            }
         }
     }
 
@@ -359,6 +296,7 @@ if (isset($_GET['youtube_auth'])) {
                 <li><a href="dashboard.php">Dashboard</a></li>
                 <li><a href="discover.php">Discover</a></li>
                 <li><a href="profile.php">Profile</a></li>
+                <li><a href="search.php">Search</a></li>
                 <li><a href="logout.php">Logout</a></li>
                 <li>
                     <button class="theme-toggle" aria-label="Toggle Theme">
@@ -405,17 +343,6 @@ if (isset($_GET['youtube_auth'])) {
                                 allowfullscreen>
                             </iframe>
                             <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
-                            
-                            <?php if ($list['user_id'] === $_SESSION['user_id']): ?>
-                                <div class="video-actions">
-                                    <form method="POST">
-                                        <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
-                                        <input type="hidden" name="action" value="remove_video">
-                                        <input type="hidden" name="video_id" value="<?php echo $video['id']; ?>">
-                                        <button type="submit" class="button button-danger">Remove</button>
-                                    </form>
-                                </div>
-                            <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
                 </div>
@@ -424,50 +351,8 @@ if (isset($_GET['youtube_auth'])) {
             <?php endif; ?>
 
             <?php if ($list['user_id'] === $_SESSION['user_id']): ?>
-                <div class="video-container">
-                    <h2>Add New Video</h2>
-                    
-                    <?php if (!isYouTubeAuthenticated()): ?>
-                        <div class="auth-notice">
-                            <p>YouTube OAuth authentication is required for searching videos. Please authenticate with YouTube to proceed.</p>
-                            <a href="<?php echo getYouTubeAuthUrl(); ?>" class="auth-button">Authenticate with YouTube</a>
-                        </div>
-                    <?php else: ?>
-                        <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"] . "?id=" . $list_id); ?>" id="searchForm">
-                            <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
-                            <input type="hidden" name="action" value="search_video">
-                            
-                            <div class="form-group">
-                                <label for="search_query">Search YouTube Videos</label>
-                                <input type="text" id="search_query" name="search_query" required>
-                                <button type="submit" class="button">Search</button>
-                            </div>
-                        </form>
-                    <?php endif; ?>
-
-                    <?php if (isset($searchResults) && isset($searchResults['items'])): ?>
-                        <div class="search-results">
-                            <h3>Search Results</h3>
-                            <div class="video-grid">
-                                <?php foreach ($searchResults['items'] as $result): ?>
-                                    <div class="video-card">
-                                        <img src="<?php echo htmlspecialchars($result['snippet']['thumbnails']['medium']['url']); ?>" 
-                                             alt="<?php echo htmlspecialchars($result['snippet']['title']); ?>" 
-                                             class="video-thumbnail">
-                                        <h3 class="video-title"><?php echo htmlspecialchars($result['snippet']['title']); ?></h3>
-                                        <p class="video-description"><?php echo htmlspecialchars(substr($result['snippet']['description'], 0, 100)) . '...'; ?></p>
-                                        
-                                        <form method="POST">
-                                            <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
-                                            <input type="hidden" name="action" value="add_video">
-                                            <input type="hidden" name="youtube_url" value="https://www.youtube.com/watch?v=<?php echo $result['id']['videoId']; ?>">
-                                            <button type="submit" class="button">Add to List</button>
-                                        </form>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                    <?php endif; ?>
+                <div style="margin-top: 2rem; text-align: center;">
+                    <a href="edit_list.php?id=<?php echo $list_id; ?>" class="button" style="padding: 10px 20px; font-size: 16px;">Edit This List</a>
                 </div>
             <?php endif; ?>
         </div>
