@@ -77,285 +77,374 @@ if (isset($_GET['youtube_auth'])) {
     <title><?php echo htmlspecialchars($list['title']); ?> - StreamShare</title>
     <link rel="stylesheet" href="../css/styles.css">
     <style>
-        .video-container {
-            margin: 2rem 0;
-            padding: 1rem;
-            background-color: #f0f2f5;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        body.dark-theme .video-container {
-            background-color: var(--dark-secondary);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-        }
-
-        .video-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 1.5rem;
-            margin-top: 1.5rem;
-        }
-
-        .video-card {
-            background-color: #ffffff;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            padding: 1rem;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .video-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        body.dark-theme .video-card {
-            background-color: var(--dark-bg);
-            border-color: var(--dark-border);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        body.dark-theme .video-card:hover {
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
-        }
-
-        .video-thumbnail {
-            width: 100%;
-            aspect-ratio: 16/9;
-            object-fit: cover;
-            border-radius: 4px;
-            margin-bottom: 1rem;
-            border: 1px solid #e5e7eb;
-        }
-
-        body.dark-theme .video-thumbnail {
-            border-color: var(--dark-border);
-        }
-
-        .video-title {
-            margin: 0.5rem 0;
-            font-size: 1.1rem;
-            color: #111827;
-            font-weight: 600;
-        }
-
-        body.dark-theme .video-title {
-            color: var(--dark-text);
-        }
-
-        .video-actions {
-            display: flex;
-            gap: 0.5rem;
-            margin-top: 1rem;
-        }
-
-        .preview-container {
-            margin: 1rem 0;
-            display: none;
-            background-color: #ffffff;
-            padding: 1rem;
-            border-radius: 8px;
-            border: 1px solid #d1d5db;
-        }
-
-        body.dark-theme .preview-container {
-            background-color: var(--dark-bg);
-            border-color: var(--dark-border);
-        }
-
-        #videoPreview {
-            width: 100%;
-            max-width: 560px;
-            aspect-ratio: 16/9;
-            border: none;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        body.dark-theme #videoPreview {
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        :root {
+            --primary-color: #0066cc;
+            --primary-hover: #0056b3;
+            --light-bg-card: #ffffff;
+            --light-border-card: #e0e0e0;
+            --dark-bg-card: #2d2d2d;
+            --dark-border-card: #444444;
         }
         
-        .form-group {
+        body {
+            background-color: var(--light-bg);
+            transition: all 0.3s ease;
+        }
+        
+        body.dark-theme {
+            background-color: var(--dark-bg);
+        }
+        
+        .page-header {
+            background-color: var(--primary-color);
+            padding: 1.5rem 0;
+            color: white;
+            text-align: center;
+            margin-bottom: 2rem;
+            border-radius: 0 0 15px 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        body.dark-theme .page-header {
+            background-color: var(--dark-accent);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .page-title {
+            font-size: 2.5rem;
+            margin: 0;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .list-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin: 0.5rem 0 0;
+            font-size: 1.1rem;
+        }
+        
+        .list-info a {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            font-weight: bold;
+            transition: color 0.2s;
+        }
+        
+        .list-info a:hover {
+            color: white;
+            text-decoration: underline;
+        }
+        
+        .privacy-badge {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .private-badge {
+            background-color: rgba(0, 0, 0, 0.2);
+            color: white;
+        }
+        
+        .public-badge {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        
+        .content-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+        
+        .list-description {
+            background-color: var(--light-bg-card);
+            border: 1px solid var(--light-border-card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        body.dark-theme .list-description {
+            background-color: var(--dark-bg-card);
+            border-color: var(--dark-border-card);
+            color: var(--dark-text);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .videos-section {
+            margin: 2.5rem 0;
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
             margin-bottom: 1.5rem;
-            max-width: 100%;
-            overflow: hidden;
+            padding-bottom: 0.8rem;
+            border-bottom: 2px solid var(--primary-color);
         }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: #374151;
-            font-weight: 500;
-            word-wrap: break-word;
-        }
-
-        body.dark-theme .form-group label {
-            color: var(--dark-text);
-        }
-
-        .form-group input[type="text"] {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            background-color: #ffffff;
-            color: #111827;
-            transition: border-color 0.2s;
-        }
-
-        .form-group input[type="text"]:focus {
-            border-color: var(--light-accent);
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
-        }
-
-        body.dark-theme .form-group input[type="text"] {
-            background-color: var(--dark-bg);
-            border-color: var(--dark-border);
-            color: var(--dark-text);
-        }
-
-        body.dark-theme .form-group input[type="text"]:focus {
+        
+        body.dark-theme .section-header {
             border-color: var(--dark-accent);
-            box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.2);
         }
-
-        .search-results {
-            margin-top: 2rem;
-            padding: 1rem;
-            background-color: #ffffff;
-            border-radius: 8px;
-            border: 1px solid #d1d5db;
+        
+        .section-title {
+            font-size: 1.8rem;
+            margin: 0;
+            color: var(--primary-color);
         }
-
-        body.dark-theme .search-results {
-            background-color: var(--dark-bg);
-            border-color: var(--dark-border);
+        
+        body.dark-theme .section-title {
+            color: var(--dark-accent);
         }
-
-        .video-description {
-            color: #6b7280;
-            font-size: 0.9rem;
-            margin: 0.5rem 0;
+        
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 2rem;
+        }
+        
+        .video-card {
+            background-color: var(--light-bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .video-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        body.dark-theme .video-card {
+            background-color: var(--dark-bg-card);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+        }
+        
+        body.dark-theme .video-card:hover {
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.4);
+        }
+        
+        .video-frame {
+            width: 100%;
+            aspect-ratio: 16/9;
+            border: none;
+        }
+        
+        .video-details {
+            padding: 1.2rem;
+        }
+        
+        .video-title {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.2rem;
+            color: #333;
             line-height: 1.4;
         }
-
-        body.dark-theme .video-description {
-            color: var(--dark-text-secondary);
+        
+        body.dark-theme .video-title {
+            color: #f0f0f0;
         }
-
-        #searchForm {
-            margin-bottom: 2rem;
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            background-color: var(--light-bg-card);
+            border-radius: 12px;
+            margin: 2rem 0;
+            border: 1px dashed var(--light-border-card);
+        }
+        
+        body.dark-theme .empty-state {
+            background-color: var(--dark-bg-card);
+            border-color: var(--dark-border-card);
+        }
+        
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: #ccc;
+        }
+        
+        body.dark-theme .empty-state-icon {
+            color: #555;
+        }
+        
+        .empty-state-text {
+            font-size: 1.2rem;
+            color: #777;
+            margin-bottom: 1.5rem;
+        }
+        
+        body.dark-theme .empty-state-text {
+            color: #aaa;
+        }
+        
+        .edit-button {
+            display: inline-block;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.8rem 2rem;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0, 102, 204, 0.3);
+            transition: all 0.3s ease;
+            margin-top: 1.5rem;
+        }
+        
+        .edit-button:hover {
+            background-color: var(--primary-hover);
+            box-shadow: 0 6px 15px rgba(0, 102, 204, 0.4);
+            transform: translateY(-2px);
+        }
+        
+        body.dark-theme .edit-button {
+            background-color: var(--dark-accent);
+            box-shadow: 0 4px 10px rgba(0, 86, 179, 0.4);
+        }
+        
+        body.dark-theme .edit-button:hover {
+            background-color: #004494;
+            box-shadow: 0 6px 15px rgba(0, 86, 179, 0.5);
+        }
+        
+        .action-button-container {
+            text-align: center;
+            margin: 2.5rem 0;
         }
         
         .auth-notice {
             background-color: #e6f7ff;
-            border: 1px solid #91d5ff;
-            padding: 1rem;
+            border-left: 4px solid #1890ff;
+            padding: 1rem 1.5rem;
             border-radius: 6px;
-            margin-bottom: 1.5rem;
+            margin: 1.5rem 0;
             color: #0050b3;
         }
         
         body.dark-theme .auth-notice {
             background-color: #112236;
-            border-color: #153450;
+            border-color: #1890ff;
             color: #4fadf7;
         }
         
-        .auth-button {
-            background-color: #1890ff;
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 6px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            display: inline-block;
-            text-align: center;
-            text-decoration: none;
-            margin-top: 1rem;
-        }
-        
-        .auth-button:hover {
-            background-color: #096dd9;
+        @media (max-width: 768px) {
+            .video-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .page-title {
+                font-size: 2rem;
+            }
+            
+            .list-info {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
         }
     </style>
 </head>
 <body class="<?php echo isset($_COOKIE['lastTheme']) && $_COOKIE['lastTheme'] === 'dark' ? 'dark-theme' : ''; ?>">
+    <button class="theme-toggle" aria-label="Toggle theme">
+        🌓
+    </button>
+
     <header>
-        <div class="logo">
-            <h1>StreamShare</h1>
-        </div>
-        <nav>
-            <ul>
-                <li><a href="dashboard.php">Dashboard</a></li>
-                <li><a href="discover.php">Discover</a></li>
-                <li><a href="profile.php">Profile</a></li>
-                <li><a href="search.php">Search</a></li>
-                <li><a href="logout.php">Logout</a></li>
-                <li>
-                    <button class="theme-toggle" aria-label="Toggle Theme">
-                        <span class="icon-light">☀️</span>
-                        <span class="icon-dark">🌙</span>
-                    </button>
-                </li>
-            </ul>
-        </nav>
+        <h1>StreamShare</h1>
     </header>
 
-    <main>
-        <div class="container">
-            <h1><?php echo htmlspecialchars($list['title']); ?></h1>
-            <p class="list-info">Created by: <a href="profile.php?username=<?php echo htmlspecialchars($list['username']); ?>"><?php echo htmlspecialchars($list['username']); ?></a> | <?php echo $list['is_private'] ? 'Private' : 'Public'; ?> list</p>
-            
-            <?php if ($list['description']): ?>
-                <p class="list-description"><?php echo nl2br(htmlspecialchars($list['description'])); ?></p>
-            <?php endif; ?>
+    <nav>
+        <ul>
+            <li><a href="../index.php">Home</a></li>
+            <li><a href="dashboard.php">Dashboard</a></li>
+            <li><a href="profile.php">Profile</a></li>
+            <li><a href="export_data.php">Export Data</a></li>
+            <li><a href="search.php">Search</a></li>
+            <li><a href="logout.php">Logout</a></li>
+        </ul>
+    </nav>
 
-            <?php if (!empty($youtube_auth_message)): ?>
-                <div class="auth-notice">
-                    <?php echo htmlspecialchars($youtube_auth_message); ?>
-                </div>
-            <?php endif; ?>
+    <div class="page-header">
+        <div class="content-container">
+            <h1 class="page-title"><?php echo htmlspecialchars($list['title']); ?></h1>
+            <div class="list-info">
+                <span>Created by: <a href="profile.php?username=<?php echo htmlspecialchars($list['username']); ?>"><?php echo htmlspecialchars($list['username']); ?></a></span>
+                <span class="privacy-badge <?php echo $list['is_private'] ? 'private-badge' : 'public-badge'; ?>">
+                    <?php echo $list['is_private'] ? '🔒 Private' : '🌐 Public'; ?>
+                </span>
+            </div>
+        </div>
+    </div>
 
-            <?php if (!empty($error_message)): ?>
-                <div class="error-message">
-                    <?php echo htmlspecialchars($error_message); ?>
-                </div>
-            <?php endif; ?>
+    <main class="content-container">
+        <?php if (!empty($youtube_auth_message)): ?>
+            <div class="auth-notice">
+                <?php echo htmlspecialchars($youtube_auth_message); ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($error_message)): ?>
+            <div class="error-message">
+                <?php echo htmlspecialchars($error_message); ?>
+            </div>
+        <?php endif; ?>
+        
+        <?php if ($list['description']): ?>
+            <div class="list-description">
+                <?php echo nl2br(htmlspecialchars($list['description'])); ?>
+            </div>
+        <?php endif; ?>
+        
+        <div class="videos-section">
+            <div class="section-header">
+                <h2 class="section-title">Videos</h2>
+            </div>
             
             <?php if (count($videos) > 0): ?>
-                <h2>Videos</h2>
                 <div class="video-grid">
                     <?php foreach ($videos as $video): ?>
                         <div class="video-card">
                             <iframe 
-                                width="100%" 
+                                class="video-frame"
                                 src="https://www.youtube.com/embed/<?php echo htmlspecialchars($video['youtube_id']); ?>" 
                                 title="<?php echo htmlspecialchars($video['title']); ?>"
                                 frameborder="0" 
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                                 allowfullscreen>
                             </iframe>
-                            <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
+                            <div class="video-details">
+                                <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
+                            </div>
                         </div>
                     <?php endforeach; ?>
                 </div>
             <?php else: ?>
-                <p>This list has no videos yet.</p>
-            <?php endif; ?>
-
-            <?php if ($list['user_id'] === $_SESSION['user_id']): ?>
-                <div style="margin-top: 2rem; text-align: center;">
-                    <a href="edit_list.php?id=<?php echo $list_id; ?>" class="button" style="padding: 10px 20px; font-size: 16px;">Edit This List</a>
+                <div class="empty-state">
+                    <div class="empty-state-icon">📺</div>
+                    <p class="empty-state-text">This list has no videos yet.</p>
+                    <?php if ($list['user_id'] === $_SESSION['user_id']): ?>
+                        <a href="edit_list.php?id=<?php echo $list_id; ?>" class="edit-button">Add Videos</a>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
         </div>
+        
+        <?php if ($list['user_id'] === $_SESSION['user_id'] && count($videos) > 0): ?>
+            <div class="action-button-container">
+                <a href="edit_list.php?id=<?php echo $list_id; ?>" class="edit-button">Edit This List</a>
+            </div>
+        <?php endif; ?>
     </main>
 
     <footer>
@@ -372,41 +461,6 @@ if (isset($_GET['youtube_auth'])) {
             document.body.classList.remove('dark-theme');
             document.cookie = "lastTheme=light; path=/; max-age=31536000";
         }
-
-        // YouTube URL validation and preview
-        document.getElementById('youtube_url')?.addEventListener('input', function() {
-            const url = this.value;
-            const previewContainer = document.querySelector('.preview-container');
-            const videoPreview = document.getElementById('videoPreview');
-            
-            // Extract YouTube ID
-            const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
-            
-            if (match && match[1]) {
-                const videoId = match[1];
-                
-                // Show preview
-                previewContainer.style.display = 'block';
-                videoPreview.src = `https://www.youtube.com/embed/${videoId}`;
-                
-                // Auto-fill title if empty
-                const titleInput = document.getElementById('video_title');
-                if (titleInput && !titleInput.value) {
-                    // Fetch video title using noembed.com API
-                    fetch(`https://noembed.com/embed?url=${url}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.title) {
-                                titleInput.value = data.title;
-                            }
-                        })
-                        .catch(error => console.error('Error fetching video title:', error));
-                }
-            } else if (previewContainer && videoPreview) {
-                previewContainer.style.display = 'none';
-                videoPreview.src = '';
-            }
-        });
         
         // Handle theme toggling
         document.querySelector('.theme-toggle')?.addEventListener('click', function() {

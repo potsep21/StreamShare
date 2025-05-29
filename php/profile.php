@@ -110,6 +110,65 @@ try {
         $is_following = ($checkFollowStmt->rowCount() > 0);
     }
     
+    // Get user activities (public lists created, videos added to public lists, and new followers)
+    $activities = [];
+    
+    // 1. Get public lists created by people the profile owner follows
+    $publicListsStmt = $conn->prepare("
+        SELECT 'list_created' as activity_type, cl.id, cl.title, cl.created_at, 
+               u.id as user_id, u.username
+        FROM content_lists cl
+        JOIN users u ON cl.user_id = u.id
+        JOIN follows f ON cl.user_id = f.following_id
+        WHERE f.follower_id = ? AND cl.is_private = 0 
+        ORDER BY cl.created_at DESC 
+        LIMIT 15
+    ");
+    $publicListsStmt->execute([$profile_id]);
+    $publicListsCreated = $publicListsStmt->fetchAll(PDO::FETCH_ASSOC);
+    $activities = array_merge($activities, $publicListsCreated);
+    
+    // 2. Get videos added to public lists by people the profile owner follows
+    $videosAddedStmt = $conn->prepare("
+        SELECT 'video_added' as activity_type, li.id, li.title, li.created_at, 
+               cl.id as list_id, cl.title as list_title,
+               u.id as user_id, u.username
+        FROM list_items li
+        JOIN content_lists cl ON li.list_id = cl.id
+        JOIN users u ON cl.user_id = u.id
+        JOIN follows f ON cl.user_id = f.following_id
+        WHERE f.follower_id = ? AND cl.is_private = 0
+        ORDER BY li.created_at DESC
+        LIMIT 15
+    ");
+    $videosAddedStmt->execute([$profile_id]);
+    $videosAdded = $videosAddedStmt->fetchAll(PDO::FETCH_ASSOC);
+    $activities = array_merge($activities, $videosAdded);
+    
+    // 3. Get new followers (only visible to the profile owner)
+    if ($is_own_profile) {
+        $newFollowersStmt = $conn->prepare("
+            SELECT 'new_follower' as activity_type, f.id, f.created_at, 
+                   u.id as follower_id, u.username as follower_username
+            FROM follows f
+            JOIN users u ON f.follower_id = u.id
+            WHERE f.following_id = ?
+            ORDER BY f.created_at DESC
+            LIMIT 10
+        ");
+        $newFollowersStmt->execute([$profile_id]);
+        $newFollowers = $newFollowersStmt->fetchAll(PDO::FETCH_ASSOC);
+        $activities = array_merge($activities, $newFollowers);
+    }
+    
+    // Sort activities by created_at in descending order
+    usort($activities, function($a, $b) {
+        return strtotime($b['created_at']) - strtotime($a['created_at']);
+    });
+    
+    // Limit to most recent 15 activities
+    $activities = array_slice($activities, 0, 15);
+    
 } catch(PDOException $e) {
     $error_message = "Database error: " . $e->getMessage();
 }
@@ -126,32 +185,40 @@ try {
         /* Profile page specific styles */
         .profile-header {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 30px;
+            gap: 20px;
             margin-bottom: 40px;
-            background-color: rgba(0,0,0,0.3);
+            background-color: #121212;
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            text-align: center;
         }
         
         .profile-avatar {
             width: 120px;
             height: 120px;
             border-radius: 50%;
-            background-color: #007bff;
+            background-color: #0078ff;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 48px;
             font-weight: bold;
             color: white;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            text-shadow: none;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
         
         .profile-info {
-            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-sizing: border-box;
+            word-wrap: break-word;
+            overflow: hidden;
+            width: 100%;
         }
         
         .profile-username {
@@ -161,13 +228,14 @@ try {
         }
         
         .profile-fullname {
-            font-size: 1.5rem;
-            color: rgba(255,255,255,0.8);
-            margin-bottom: 15px;
+            font-size: 1.2rem;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 25px;
         }
         
         .profile-stats {
             display: flex;
+            justify-content: center;
             gap: 30px;
             margin-bottom: 20px;
         }
@@ -196,10 +264,11 @@ try {
             margin-bottom: 20px;
             color: rgba(255,255,255,0.9);
             font-style: italic;
+            max-width: 600px;
         }
         
         .profile-actions {
-            margin-top: 20px;
+            margin-top: 10px;
         }
         
         .follow-btn {
@@ -237,22 +306,25 @@ try {
         }
         
         .edit-profile-btn {
-            background-color: rgba(255,255,255,0.15);
+            background-color: rgba(70, 70, 70, 0.8);
             color: white;
-            border: 1px solid rgba(255,255,255,0.3);
-            padding: 10px 25px;
+            border: none;
+            padding: 10px 30px;
             border-radius: 30px;
             font-size: 1rem;
-            font-weight: bold;
+            font-weight: normal;
             cursor: pointer;
             transition: all 0.3s ease;
             text-decoration: none;
             display: inline-block;
+            box-sizing: border-box;
+            max-width: 100%;
+            text-align: center;
+            word-break: break-word;
         }
         
         .edit-profile-btn:hover {
-            background-color: rgba(255,255,255,0.25);
-            transform: translateY(-2px);
+            background-color: rgba(90, 90, 90, 0.9);
         }
         
         .content-section {
@@ -272,97 +344,77 @@ try {
             font-size: 1.5rem;
         }
         
-        .content-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-        
-        .content-card {
-            background-color: rgba(255,255,255,0.9);
+        .activity-list {
+            background-color: rgba(30, 30, 30, 0.7);
             border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease;
-            position: relative;
+            padding: 10px;
+            margin-bottom: 20px;
         }
         
-        body.dark-theme .content-card {
-            background-color: rgba(40,40,40,0.9);
+        .activity-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: background-color 0.2s ease;
         }
         
-        .content-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+        .activity-item:last-child {
+            border-bottom: none;
         }
         
-        .private-badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background-color: #dc3545;
+        .activity-item:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+        
+        .activity-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #1e88e5;
             color: white;
-            padding: 3px 8px;
-            border-radius: 10px;
-            font-size: 0.8rem;
-            font-weight: bold;
-        }
-        
-        .content-title {
-            font-size: 1.4rem;
-            margin-bottom: 10px;
-            color: #0056b3;
-        }
-        
-        body.dark-theme .content-title {
-            color: #4da3ff;
-        }
-        
-        .content-meta {
             display: flex;
-            justify-content: space-between;
-            margin-top: 15px;
-            color: #666;
-            font-size: 0.9rem;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            flex-shrink: 0;
         }
         
-        body.dark-theme .content-meta {
-            color: #aaa;
+        .activity-icon.list-created {
+            background-color: #43a047;
         }
         
-        .content-actions {
-            margin-top: 15px;
-            display: flex;
-            gap: 10px;
+        .activity-icon.video-added {
+            background-color: #e53935;
         }
         
-        .view-btn, .edit-btn {
+        .activity-icon.new-follower {
+            background-color: #9c27b0;
+        }
+        
+        .activity-content {
             flex: 1;
-            padding: 8px 0;
-            text-align: center;
-            border-radius: 5px;
+        }
+        
+        .activity-title {
+            font-size: 1.1rem;
+            color: white;
+            margin-bottom: 5px;
+        }
+        
+        .activity-title a {
+            color: #64b5f6;
             text-decoration: none;
             font-weight: bold;
-            transition: all 0.3s ease;
         }
         
-        .view-btn {
-            background-color: #28a745;
-            color: white;
+        .activity-title a:hover {
+            text-decoration: underline;
         }
         
-        .view-btn:hover {
-            background-color: #218838;
-        }
-        
-        .edit-btn {
-            background-color: #007bff;
-            color: white;
-        }
-        
-        .edit-btn:hover {
-            background-color: #0056b3;
+        .activity-meta {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.6);
         }
         
         .empty-state {
@@ -385,10 +437,6 @@ try {
             .profile-stats {
                 justify-content: center;
             }
-            
-            .content-grid {
-                grid-template-columns: 1fr;
-            }
         }
     </style>
 </head>
@@ -408,6 +456,7 @@ try {
             <?php if (isLoggedIn()): ?>
                 <li><a href="dashboard.php">Dashboard</a></li>
                 <li><a href="profile.php" class="<?php echo $is_own_profile ? 'active' : ''; ?>">Profile</a></li>
+                <li><a href="export_data.php">Export Data</a></li>
                 <li><a href="search.php">Search</a></li>
                 <li><a href="logout.php">Logout</a></li>
             <?php else: ?>
@@ -432,7 +481,11 @@ try {
         <?php if ($profile_user): ?>
             <div class="profile-header">
                 <div class="profile-avatar">
-                    <?php echo strtoupper(substr($profile_user['username'], 0, 1)); ?>
+                    <?php 
+                    // Get first character of username for avatar
+                    $avatar_char = strtoupper(substr($profile_user['username'], 0, 1)); 
+                    echo $avatar_char;
+                    ?>
                 </div>
                 
                 <div class="profile-info">
@@ -489,54 +542,51 @@ try {
             
             <div class="content-section">
                 <h3 class="section-heading">
-                    <span class="section-icon">📋</span>
-                    Content Lists
-                    <?php if ($is_own_profile): ?>
-                        <span style="font-size: 1rem; color: rgba(255,255,255,0.7); margin-left: 10px;">
-                            (includes private lists)
-                        </span>
-                    <?php endif; ?>
+                    <span class="section-icon">📊</span>
+                    Activity
                 </h3>
                 
-                <?php if (count($content_lists) > 0): ?>
-                    <div class="content-grid">
-                        <?php foreach ($content_lists as $list): ?>
-                            <div class="content-card">
-                                <?php if ($list['is_private']): ?>
-                                    <div class="private-badge">Private</div>
+                <?php if (count($activities) > 0): ?>
+                    <div class="activity-list">
+                        <?php foreach ($activities as $activity): ?>
+                            <div class="activity-item">
+                                <?php if ($activity['activity_type'] === 'list_created'): ?>
+                                    <div class="activity-icon list-created">📋</div>
+                                    <div class="activity-content">
+                                        <div class="activity-title">
+                                            <a href="profile.php?id=<?php echo $activity['user_id']; ?>"><?php echo htmlspecialchars($activity['username']); ?></a> created a new public list: <a href="view_list.php?id=<?php echo $activity['id']; ?>"><?php echo htmlspecialchars($activity['title']); ?></a>
+                                        </div>
+                                        <div class="activity-meta" data-datetime="<?php echo $activity['created_at']; ?>">
+                                            <?php echo timeAgo($activity['created_at']); ?>
+                                        </div>
+                                    </div>
+                                <?php elseif ($activity['activity_type'] === 'video_added'): ?>
+                                    <div class="activity-icon video-added">🎬</div>
+                                    <div class="activity-content">
+                                        <div class="activity-title">
+                                            <a href="profile.php?id=<?php echo $activity['user_id']; ?>"><?php echo htmlspecialchars($activity['username']); ?></a> added video: <a href="view_list.php?id=<?php echo $activity['list_id']; ?>"><?php echo htmlspecialchars($activity['title']); ?></a> to list <a href="view_list.php?id=<?php echo $activity['list_id']; ?>"><?php echo htmlspecialchars($activity['list_title']); ?></a>
+                                        </div>
+                                        <div class="activity-meta" data-datetime="<?php echo $activity['created_at']; ?>">
+                                            <?php echo timeAgo($activity['created_at']); ?>
+                                        </div>
+                                    </div>
+                                <?php elseif ($activity['activity_type'] === 'new_follower'): ?>
+                                    <div class="activity-icon new-follower">👤</div>
+                                    <div class="activity-content">
+                                        <div class="activity-title">
+                                            <a href="profile.php?id=<?php echo $activity['follower_id']; ?>"><?php echo htmlspecialchars($activity['follower_username']); ?></a> started following you
+                                        </div>
+                                        <div class="activity-meta" data-datetime="<?php echo $activity['created_at']; ?>">
+                                            <?php echo timeAgo($activity['created_at']); ?>
+                                        </div>
+                                    </div>
                                 <?php endif; ?>
-                                
-                                <h4 class="content-title"><?php echo htmlspecialchars($list['title']); ?></h4>
-                                
-                                <?php if (!empty($list['description'])): ?>
-                                    <p>
-                                        <?php echo htmlspecialchars(substr($list['description'], 0, 100)) . (strlen($list['description']) > 100 ? '...' : ''); ?>
-                                    </p>
-                                <?php endif; ?>
-                                
-                                <div class="content-meta">
-                                    <span><?php echo $list['item_count']; ?> videos</span>
-                                    <span>Created: <?php echo formatDate($list['created_at']); ?></span>
-                                </div>
-                                
-                                <div class="content-actions">
-                                    <a href="view_list.php?id=<?php echo $list['id']; ?>" class="view-btn">View</a>
-                                    <?php if ($is_own_profile): ?>
-                                        <a href="edit_list.php?id=<?php echo $list['id']; ?>" class="edit-btn">Edit</a>
-                                    <?php endif; ?>
-                                </div>
                             </div>
                         <?php endforeach; ?>
                     </div>
                 <?php else: ?>
                     <div class="empty-state">
-                        <?php if ($is_own_profile): ?>
-                            You haven't created any content lists yet.
-                            <br><br>
-                            <a href="create_list.php" class="button">Create Your First List</a>
-                        <?php else: ?>
-                            This user hasn't created any public content lists yet.
-                        <?php endif; ?>
+                        <p>No activity to display yet.</p>
                     </div>
                 <?php endif; ?>
             </div>
@@ -548,5 +598,53 @@ try {
     </footer>
 
     <script src="../js/main.js"></script>
+    <script>
+        // Function to update timestamps in real-time
+        function updateTimestamps() {
+            const timestamps = document.querySelectorAll('.activity-meta');
+            
+            timestamps.forEach(timestamp => {
+                const datetime = timestamp.getAttribute('data-datetime');
+                if (datetime) {
+                    timestamp.textContent = calculateTimeAgo(datetime);
+                }
+            });
+        }
+        
+        // JavaScript version of the PHP timeAgo function
+        function calculateTimeAgo(datetime) {
+            const timestamp = new Date(datetime).getTime();
+            const now = new Date().getTime();
+            const diff = Math.floor((now - timestamp) / 1000); // difference in seconds
+            
+            if (diff < 60) {
+                return "just now";
+            } else if (diff < 3600) {
+                const minutes = Math.floor(diff / 60);
+                return minutes + " minute" + (minutes > 1 ? "s" : "") + " ago";
+            } else if (diff < 86400) {
+                const hours = Math.floor(diff / 3600);
+                return hours + " hour" + (hours > 1 ? "s" : "") + " ago";
+            } else if (diff < 604800) {
+                const days = Math.floor(diff / 86400);
+                return days + " day" + (days > 1 ? "s" : "") + " ago";
+            } else if (diff < 2592000) {
+                const weeks = Math.floor(diff / 604800);
+                return weeks + " week" + (weeks > 1 ? "s" : "") + " ago";
+            } else if (diff < 31536000) {
+                const months = Math.floor(diff / 2592000);
+                return months + " month" + (months > 1 ? "s" : "") + " ago";
+            } else {
+                const years = Math.floor(diff / 31536000);
+                return years + " year" + (years > 1 ? "s" : "") + " ago";
+            }
+        }
+        
+        // Update timestamps immediately and then every minute
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTimestamps();
+            setInterval(updateTimestamps, 60000); // Update every minute
+        });
+    </script>
 </body>
 </html> 

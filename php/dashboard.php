@@ -14,6 +14,11 @@ if (!$user) {
     redirect('login.php');
 }
 
+// Check for error messages from redirects
+if (isset($_GET['error'])) {
+    $error_message = $_GET['error'];
+}
+
 // Handle list creation
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if ($_POST['action'] === 'create_list') {
@@ -31,7 +36,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $conn = getDBConnection();
                 $stmt = $conn->prepare("INSERT INTO content_lists (user_id, title, description, is_private) VALUES (?, ?, ?, ?)");
                 $stmt->execute([$_SESSION['user_id'], $title, $description, $is_private]);
-                $success_message = "List created successfully!";
+                
+                // Get the ID of the newly created list
+                $new_list_id = $conn->lastInsertId();
+                
+                // Redirect to edit page for the new list
+                redirect("edit_list.php?id=" . $new_list_id);
             } catch(PDOException $e) {
                 $error_message = "Error creating list: " . $e->getMessage();
             }
@@ -44,7 +54,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 // Get user's lists
 try {
     $conn = getDBConnection();
-    $stmt = $conn->prepare("SELECT * FROM content_lists WHERE user_id = ? ORDER BY created_at DESC");
+    $stmt = $conn->prepare("
+        SELECT cl.*, 
+               (SELECT COUNT(*) FROM list_items WHERE list_id = cl.id) as video_count 
+        FROM content_lists cl 
+        WHERE cl.user_id = ? 
+        ORDER BY cl.created_at DESC
+    ");
     $stmt->execute([$_SESSION['user_id']]);
     $lists = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch(PDOException $e) {
@@ -73,11 +89,20 @@ $public_lists_count = getPublicListsCount($_SESSION['user_id']);
             max-width: 1200px;
         }
 
+        @media (max-width: 768px) {
+            .dashboard-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .profile-sidebar {
             background-color: var(--light-secondary);
             padding: 1.5rem;
             border-radius: 8px;
             height: fit-content;
+            box-sizing: border-box;
+            word-wrap: break-word;
+            overflow: hidden;
         }
 
         body.dark-theme .profile-sidebar {
@@ -193,6 +218,11 @@ $public_lists_count = getPublicListsCount($_SESSION['user_id']);
             cursor: pointer;
             text-decoration: none;
             display: inline-block;
+            box-sizing: border-box;
+            text-align: center;
+            font-size: 0.95rem;
+            max-width: 100%;
+            white-space: normal;
         }
 
         body.dark-theme .button {
@@ -224,6 +254,17 @@ $public_lists_count = getPublicListsCount($_SESSION['user_id']);
             border-radius: 4px;
             background-color: #d4edda;
         }
+
+        .profile-sidebar h2 {
+            margin-top: 0;
+            word-break: break-word;
+            font-size: 1.3rem;
+        }
+
+        .profile-sidebar p {
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
     </style>
 </head>
 <body>
@@ -241,6 +282,7 @@ $public_lists_count = getPublicListsCount($_SESSION['user_id']);
             <li><a href="../index.php">Home</a></li>
             <li><a href="dashboard.php">Dashboard</a></li>
             <li><a href="profile.php">Profile</a></li>
+            <li><a href="export_data.php">Export Data</a></li>
             <li><a href="search.php">Search</a></li>
             <li><a href="logout.php">Logout</a></li>
         </ul>
@@ -267,7 +309,7 @@ $public_lists_count = getPublicListsCount($_SESSION['user_id']);
                     </div>
                 </div>
 
-                <a href="profile.php" class="button" style="width: 100%; text-align: center; margin-top: 1rem;">Edit Profile</a>
+                <a href="profile.php" class="button" style="width: 100%; text-align: center; margin-top: 1rem; box-sizing: border-box; display: block; word-break: break-word;">Edit Profile</a>
             </aside>
 
             <section class="content-area">
@@ -308,7 +350,7 @@ $public_lists_count = getPublicListsCount($_SESSION['user_id']);
                 </div>
 
                 <div class="lists-section">
-                    <h2>Your Lists</h2>
+                    <h2>Content Lists</h2>
                     
                     <?php if (empty($lists)): ?>
                         <p>You haven't created any lists yet. Create your first list above!</p>
@@ -320,6 +362,7 @@ $public_lists_count = getPublicListsCount($_SESSION['user_id']);
                                     <div class="list-meta">
                                         <p><?php echo $list['is_private'] ? '🔒 Private' : '🌐 Public'; ?></p>
                                         <p>Created: <?php echo formatDate($list['created_at']); ?></p>
+                                        <p>📽️ Videos: <?php echo $list['video_count']; ?></p>
                                     </div>
                                     <p><?php echo htmlspecialchars($list['description']); ?></p>
                                     <div class="list-actions">

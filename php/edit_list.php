@@ -140,6 +140,34 @@ try {
             } else {
                 $error_message = "Title cannot be empty";
             }
+        } elseif ($_POST['action'] === 'delete_list') {
+            // First check if confirmation is provided
+            if (isset($_POST['confirm_delete']) && $_POST['confirm_delete'] === 'yes') {
+                try {
+                    // Start transaction to ensure both operations complete or fail together
+                    $conn->beginTransaction();
+                    
+                    // Delete all videos in the list (this might be unnecessary with CASCADE, but being explicit)
+                    $stmt = $conn->prepare("DELETE FROM list_items WHERE list_id = ?");
+                    $stmt->execute([$list_id]);
+                    
+                    // Delete the list itself
+                    $stmt = $conn->prepare("DELETE FROM content_lists WHERE id = ? AND user_id = ?");
+                    $stmt->execute([$list_id, $_SESSION['user_id']]);
+                    
+                    // Commit the transaction
+                    $conn->commit();
+                    
+                    // Redirect to dashboard with success message
+                    redirect("dashboard.php?success=" . urlencode("List deleted successfully!"));
+                } catch (PDOException $e) {
+                    // Roll back the transaction on error
+                    $conn->rollBack();
+                    $error_message = "Error deleting list: " . $e->getMessage();
+                }
+            } else {
+                $error_message = "Please confirm deletion by checking the confirmation box.";
+            }
         }
     }
 
@@ -437,6 +465,94 @@ if (isset($_GET['youtube_auth'])) {
             justify-content: space-between;
             margin-bottom: 2rem;
         }
+        
+        /* Delete list section styles */
+        .delete-list-section {
+            background-color: #fff5f5;
+            border: 1px solid #ffcccc;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 2.5rem 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        body.dark-theme .delete-list-section {
+            background-color: #3b1d1d;
+            border-color: #5c2626;
+        }
+        
+        .delete-list-section h2 {
+            color: #dc3545;
+            margin-top: 0;
+            margin-bottom: 1rem;
+        }
+        
+        body.dark-theme .delete-list-section h2 {
+            color: #ff6b6b;
+        }
+        
+        .delete-list-section p {
+            margin-bottom: 1.5rem;
+            color: #842029;
+        }
+        
+        body.dark-theme .delete-list-section p {
+            color: #f8d7da;
+        }
+        
+        .delete-list-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .confirmation-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .confirmation-checkbox input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+        
+        .confirmation-checkbox label {
+            color: #842029;
+            font-weight: 500;
+        }
+        
+        body.dark-theme .confirmation-checkbox label {
+            color: #f8d7da;
+        }
+        
+        .delete-button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-block;
+            text-align: center;
+            max-width: 200px;
+        }
+        
+        .delete-button:hover {
+            background-color: #c82333;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+        }
+        
+        .delete-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
     </style>
 </head>
 <body class="<?php echo isset($_COOKIE['lastTheme']) && $_COOKIE['lastTheme'] === 'dark' ? 'dark-theme' : ''; ?>">
@@ -449,6 +565,7 @@ if (isset($_GET['youtube_auth'])) {
                 <li><a href="dashboard.php">Dashboard</a></li>
                 <li><a href="discover.php">Discover</a></li>
                 <li><a href="profile.php">Profile</a></li>
+                <li><a href="export_data.php">Export Data</a></li>
                 <li><a href="search.php">Search</a></li>
                 <li><a href="logout.php">Logout</a></li>
                 <li>
@@ -593,6 +710,24 @@ if (isset($_GET['youtube_auth'])) {
                     </div>
                 <?php endif; ?>
             </div>
+            
+            <!-- Delete List Section -->
+            <div class="delete-list-section">
+                <h2>Delete This List</h2>
+                <p>Warning: This action cannot be undone. All videos in this list will be removed.</p>
+                
+                <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"] . "?id=" . $list_id); ?>" class="delete-list-form" id="deleteListForm">
+                    <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
+                    <input type="hidden" name="action" value="delete_list">
+                    
+                    <div class="confirmation-checkbox">
+                        <input type="checkbox" id="confirm_delete" name="confirm_delete" value="yes">
+                        <label for="confirm_delete">I understand that this action is permanent and cannot be undone</label>
+                    </div>
+                    
+                    <button type="submit" class="delete-button" id="deleteButton" disabled>Delete List</button>
+                </form>
+            </div>
         </div>
     </main>
 
@@ -618,6 +753,23 @@ if (isset($_GET['youtube_auth'])) {
             localStorage.setItem('lastTheme', isDark ? 'dark' : 'light');
             document.cookie = `lastTheme=${isDark ? 'dark' : 'light'}; path=/; max-age=31536000`;
         });
+        
+        // Handle delete list button enabling/disabling
+        const confirmDeleteCheckbox = document.getElementById('confirm_delete');
+        const deleteButton = document.getElementById('deleteButton');
+        
+        if (confirmDeleteCheckbox && deleteButton) {
+            confirmDeleteCheckbox.addEventListener('change', function() {
+                deleteButton.disabled = !this.checked;
+            });
+            
+            // Add confirmation dialog when submitting the delete form
+            document.getElementById('deleteListForm').addEventListener('submit', function(e) {
+                if (!confirm('Are you absolutely sure you want to delete this list? This action cannot be undone.')) {
+                    e.preventDefault();
+                }
+            });
+        }
     </script>
 
     <script src="../js/main.js"></script>

@@ -164,11 +164,14 @@ try {
     <style>
         /* Edit profile specific styles */
         .profile-form {
-            background-color: rgba(0,0,0,0.3);
+            background-color: #222222;
             border-radius: 10px;
             padding: 30px;
             margin-bottom: 30px;
             box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
         }
         
         .profile-form h2 {
@@ -199,6 +202,7 @@ try {
         
         .form-group {
             margin-bottom: 20px;
+            position: relative;
         }
         
         .form-group label {
@@ -213,14 +217,16 @@ try {
             padding: 12px 15px;
             border-radius: 8px;
             border: none;
-            background-color: rgba(255,255,255,0.9);
+            background-color: rgba(40, 40, 40, 0.8);
             font-size: 16px;
-            color: #333;
+            color: white;
+            box-sizing: border-box;
         }
         
         .form-control:focus {
             outline: none;
             box-shadow: 0 0 0 2px rgba(0,123,255,0.5);
+            background-color: rgba(50, 50, 50, 0.9);
         }
         
         .form-control-textarea {
@@ -228,10 +234,9 @@ try {
             resize: vertical;
         }
         
-        body.dark-theme .form-control {
-            background-color: rgba(40,40,40,0.9);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.1);
+        .form-control:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
         }
         
         .form-actions {
@@ -268,20 +273,59 @@ try {
         }
         
         .btn-cancel {
-            background-color: rgba(255,255,255,0.15);
+            background-color: rgba(70, 70, 70, 0.8);
             color: white;
-            border: 1px solid rgba(255,255,255,0.3);
+            border: none;
             padding: 12px 30px;
             border-radius: 30px;
             font-size: 16px;
-            font-weight: bold;
+            font-weight: normal;
             cursor: pointer;
             transition: all 0.3s ease;
             text-decoration: none;
         }
         
         .btn-cancel:hover {
-            background-color: rgba(255,255,255,0.25);
+            background-color: rgba(90, 90, 90, 0.9);
+        }
+        
+        /* Delete account section */
+        .delete-account-form {
+            background-color: rgba(30, 30, 30, 0.9);
+            border: 1px solid rgba(220, 53, 69, 0.3);
+            border-radius: 10px;
+            margin-top: 2rem;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .delete-account-form h2 {
+            color: #dc3545;
+        }
+        
+        .delete-account-form .form-section {
+            border-color: rgba(220, 53, 69, 0.2);
+        }
+        
+        .delete-account-form h3 {
+            color: #dc3545;
+        }
+        
+        .delete-account-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .delete-account-btn:hover {
+            background-color: #c82333;
         }
         
         @media (max-width: 768px) {
@@ -317,6 +361,7 @@ try {
             <li><a href="../index.php">Home</a></li>
             <li><a href="dashboard.php">Dashboard</a></li>
             <li><a href="profile.php" class="active">Profile</a></li>
+            <li><a href="export_data.php">Export Data</a></li>
             <li><a href="search.php">Search</a></li>
             <li><a href="logout.php">Logout</a></li>
         </ul>
@@ -395,12 +440,12 @@ try {
             </div>
         </form>
         
-        <!-- Add new Delete Account section -->
-        <form method="POST" class="profile-form" style="margin-top: 2rem; background-color: rgba(220,53,69,0.2);">
-            <h2 style="color: #dc3545;">Delete Account</h2>
+        <!-- Delete Account section -->
+        <form method="POST" class="profile-form delete-account-form">
+            <h2>Delete Account</h2>
             
-            <div class="form-section" style="border-color: rgba(220,53,69,0.2);">
-                <h3 style="color: #dc3545;">Delete Your Account</h3>
+            <div class="form-section">
+                <h3>Delete Your Account</h3>
                 <p class="form-note" style="color: rgba(255,255,255,0.8);">
                     Warning: This action is permanent and cannot be undone. All your data will be deleted including:
                 </p>
@@ -416,9 +461,7 @@ try {
                 </div>
                 
                 <div style="display: flex; justify-content: center; margin-top: 1.5rem;">
-                    <button type="submit" name="action" value="delete_account" 
-                            style="background-color: #dc3545; color: white; border: none; padding: 12px 30px; border-radius: 30px; 
-                                  font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s ease;"
+                    <button type="submit" name="action" value="delete_account" class="delete-account-btn"
                             onclick="return confirm('Are you absolutely sure you want to delete your account? This action cannot be undone.')">
                         Delete My Account
                     </button>

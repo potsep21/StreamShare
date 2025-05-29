@@ -14,6 +14,47 @@ StreamShare is a web application that allows users to create and share lists of 
 - Search functionality
 - Profile management
 - YouTube OAuth integration for video search
+- Activity feed showing content from followed users
+- Delete list functionality
+- Social connections and content discovery
+- User privacy controls
+- Profile customization
+- Data export capabilities
+
+## Recent Updates
+
+### UI Improvements
+- **Enhanced List View**: Completely redesigned view_list.php with modern card-based layout
+- **Dashboard Enhancement**: Better organization of user content with clearer actions
+- **Profile Activity Feed**: Added personalized activity section showing content from followed users
+- **Responsive Improvements**: Better mobile support across all pages
+
+### Functional Improvements
+- **Activity Feed**: Added social activity tracking for:
+  - Public list creation by followed users
+  - Videos added to public lists by followed users
+  - New followers (visible only to profile owner)
+- **List Management**:
+  - Added ability to delete lists
+  - Improved list editing interface
+  - Auto-redirect to edit newly created lists
+- **Content Organization**:
+  - Moved content lists from profile to dashboard for better organization
+  - Added activity section to profile for social engagement
+- **User Experience**:
+  - Improved navigation between related pages
+  - Enhanced form validation and error messaging
+  - Better content discovery mechanisms
+
+### Security & Privacy
+- **Privacy Controls**:
+  - Follower information is only visible to profile owner
+  - Enhanced permissions for content access
+  - Improved private/public content separation
+- **User Data Protection**:
+  - Secure handling of OAuth tokens
+  - Better input validation and sanitization
+  - Protection against common web vulnerabilities
 
 ## Requirements
 
@@ -78,14 +119,20 @@ streamshare/
 │   └── main.js
 ├── php/
 │   ├── dashboard.php
+│   ├── edit_list.php
+│   ├── edit_profile.php
+│   ├── export_data.php
 │   ├── init_db.php
 │   ├── login.php
 │   ├── logout.php
 │   ├── oauth_callback.php
-│   └── register.php
-├── about.html
-├── help.html
-├── index.html
+│   ├── profile.php
+│   ├── register.php
+│   ├── search.php
+│   └── view_list.php
+├── about.php
+├── help.php
+├── index.php
 └── README.md
 ```
 
@@ -93,10 +140,21 @@ streamshare/
 
 1. Visit the website and create an account
 2. Log in to your account
-3. Create content lists and add YouTube videos
+3. Create content lists from your dashboard
 4. When prompted, authenticate with your Google account to use YouTube search
-5. Follow other users to discover their public lists
-6. Manage your profile and content visibility
+5. Add videos to your lists by searching YouTube directly
+6. Follow other users to discover their public content in your activity feed
+7. Manage your profile and customize your visibility settings
+8. View the activity feed to see content from users you follow
+
+## User Journey
+
+1. **Registration/Login**: Create an account or sign in
+2. **Dashboard**: Create new content lists or manage existing ones
+3. **Content Creation**: Add YouTube videos to your lists through search
+4. **Content Discovery**: Follow other users and explore their public lists
+5. **Activity Feed**: Keep up with content from users you follow
+6. **Profile Management**: Update your information and privacy settings
 
 ## Security Features
 
@@ -107,6 +165,8 @@ streamshare/
 - Session management
 - XSS prevention
 - OAuth 2.0 authentication for YouTube API
+- Privacy controls for user data
+- Secure content visibility management
 
 ## Contributing
 
@@ -125,4 +185,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - YouTube Data API with OAuth 2.0
 - PHP PDO
 - Modern CSS features
-- JavaScript ES6+ 
+- JavaScript ES6+

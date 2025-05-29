@@ -314,6 +314,7 @@ $success_message = '';
             <?php if (isLoggedIn()): ?>
                 <li><a href="php/dashboard.php">Dashboard</a></li>
                 <li><a href="php/profile.php">Profile</a></li>
+                <li><a href="php/export_data.php">Export Data</a></li>
                 <li><a href="php/search.php">Search</a></li>
                 <li><a href="php/logout.php">Logout</a></li>
             <?php else: ?>
