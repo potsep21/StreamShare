@@ -23,6 +23,12 @@ StreamShare is a web application that allows users to create and share lists of 
 
 ## Recent Updates
 
+### Docker & Infrastructure Fixes (May 2025)
+- **MySQL Readiness Check Fix**: Fixed database initialization issue where the MySQL readiness check was attempting to connect to the wrong database
+- **OAuth Redirect URI Update**: Updated the YouTube OAuth redirect URI to correctly use port 8080 for Docker setup
+- **Docker-Compose Configuration**: Updated port mappings to use port 8080 for web service and 3307 for database service
+- **Application Access URL**: Application now accessible at http://localhost:8080 instead of port 80
+
 ### UI Improvements
 - **Enhanced List View**: Completely redesigned view_list.php with modern card-based layout
 - **Dashboard Enhancement**: Better organization of user content with clearer actions
@@ -88,7 +94,7 @@ This application can be run using Docker and Docker Compose.
    The database will be automatically initialized when the containers start.
 
 3. Access the application:
-   Open http://localhost in your web browser
+   Open http://localhost:8080 in your web browser
 
 ### Docker Environment
 
