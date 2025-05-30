@@ -37,7 +37,4 @@ RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 EXPOSE 80
 
 # Set entrypoint
-ENTRYPOINT ["/var/www/html/docker/entrypoint.sh"]
-
-# Start Apache
-CMD ["apache2-foreground"] 
+ENTRYPOINT ["/var/www/html/docker/entrypoint.sh"] 

@@ -85,11 +85,9 @@ This application can be run using Docker and Docker Compose.
    ```
    docker-compose up -d
    ```
+   The database will be automatically initialized when the containers start.
 
-3. Initialize the database:
-   Access http://localhost/php/init_db.php in your browser
-
-4. Access the application:
+3. Access the application:
    Open http://localhost in your web browser
 
 ### Docker Environment

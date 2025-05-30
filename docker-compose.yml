@@ -15,6 +15,7 @@ services:
       - DB_USER=streamshare
       - DB_PASS=streamshare_password
       - DB_NAME=streamshare
+    restart: on-failure
 
   db:
     image: mysql:8.0
