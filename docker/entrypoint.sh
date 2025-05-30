@@ -7,7 +7,7 @@ max_tries=30
 tries=0
 
 while [ $tries -lt $max_tries ]; do
-  if php -r "try { new PDO('mysql:host=db;dbname=mysql', 'streamshare', 'streamshare_password'); echo 'success'; } catch (\Exception \$e) { exit(1); }" > /dev/null 2>&1; then
+  if php -r "try { new PDO('mysql:host=db;dbname=streamshare', 'streamshare', 'streamshare_password'); echo 'success'; } catch (\Exception \$e) { exit(1); }" > /dev/null 2>&1; then
     echo "MySQL is ready!"
     break
   fi

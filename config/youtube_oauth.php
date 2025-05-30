@@ -5,7 +5,7 @@ require_once __DIR__ . '/api_keys.php';
 // OAuth 2.0 settings
 define('YOUTUBE_OAUTH_CLIENT_ID', isset($YOUTUBE_OAUTH_CLIENT_ID) ? $YOUTUBE_OAUTH_CLIENT_ID : '');
 define('YOUTUBE_OAUTH_CLIENT_SECRET', isset($YOUTUBE_OAUTH_CLIENT_SECRET) ? $YOUTUBE_OAUTH_CLIENT_SECRET : '');
-define('YOUTUBE_OAUTH_REDIRECT_URI', 'http://localhost/streamshare/php/oauth_callback.php');
+define('YOUTUBE_OAUTH_REDIRECT_URI', 'http://localhost:8080/php/oauth_callback.php');
 
 // YouTube OAuth authorization endpoints
 define('YOUTUBE_OAUTH_AUTH_URL', 'https://accounts.google.com/o/oauth2/auth');
